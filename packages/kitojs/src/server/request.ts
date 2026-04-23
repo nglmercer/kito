@@ -3,6 +3,8 @@ import type {
   CommonHeaderNames,
   KitoRequest,
   RequestHeaders,
+  RequestFiles,
+  UploadedFile,
 } from "@kitojs/types";
 import {
   getBodyBuffer,
@@ -24,6 +26,7 @@ import {
   getIps,
   getSecure,
   getXhr,
+  getAllFiles,
 } from "@kitojs/kito-core";
 
 export class RequestBuilder implements KitoRequest {
@@ -46,6 +49,7 @@ export class RequestBuilder implements KitoRequest {
   private _ips?: string[];
   private _secure?: boolean;
   private _xhr?: boolean;
+  private _files?: RequestFiles;
 
   // biome-ignore lint/suspicious/noExplicitAny: ...
   constructor(requestCore: any) {
@@ -213,6 +217,25 @@ export class RequestBuilder implements KitoRequest {
       this._xhr = getXhr(this.core);
     }
     return this._xhr;
+  }
+
+  get files(): RequestFiles | undefined {
+    if (!this._files) {
+      const coreFiles = getAllFiles(this.core);
+      if (Object.keys(coreFiles).length === 0) return undefined;
+
+      this._files = {};
+      for (const [key, files] of Object.entries(coreFiles)) {
+        const mappedFiles: UploadedFile[] = (files as any[]).map((f) => ({
+          filename: f.filename,
+          contentType: f.contentType,
+          size: f.size,
+          data: f.data,
+        }));
+        this._files[key] = mappedFiles.length === 1 ? mappedFiles[0] : mappedFiles;
+      }
+    }
+    return this._files;
   }
 
   get originalUrl(): string {
