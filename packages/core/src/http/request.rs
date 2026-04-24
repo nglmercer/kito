@@ -6,10 +6,10 @@ use hyper::{
 
 use napi::bindgen_prelude::{Buffer, External};
 
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use crate::http::multipart::{
-    extract_boundary, parse_multipart, FileData, UploadConfig, UploadedFile,
+    FileData, UploadConfig, UploadedFile, extract_boundary, parse_multipart,
 };
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 #[derive(Clone)]
 pub struct RequestCore {
@@ -122,18 +122,18 @@ impl RequestCore {
             headers_raw.get("x-requested-with").map(|v| v == "XMLHttpRequest").unwrap_or(false);
 
         let mut files = HashMap::new();
-        if let Some(content_type) = headers_raw.get("content-type") {
-            if let Some(boundary) = extract_boundary(content_type) {
-                match parse_multipart(&boundary, body.clone(), upload_config).await {
-                    Ok((fields, parsed_files)) => {
-                        for (key, values) in fields {
-                            query_raw.entry(key).or_default().extend(values);
-                        }
-                        files = parsed_files;
+        if let Some(content_type) = headers_raw.get("content-type")
+            && let Some(boundary) = extract_boundary(content_type)
+        {
+            match parse_multipart(&boundary, body.clone(), upload_config).await {
+                Ok((fields, parsed_files)) => {
+                    for (key, values) in fields {
+                        query_raw.entry(key).or_default().extend(values);
                     }
-                    Err(e) => {
-                        eprintln!("Error parsing multipart body: {}", e);
-                    }
+                    files = parsed_files;
+                }
+                Err(e) => {
+                    eprintln!("Error parsing multipart body: {}", e);
                 }
             }
         }
@@ -274,11 +274,9 @@ pub fn get_all_files(core: &External<Arc<RequestCore>>) -> HashMap<String, Vec<U
             .map(|f| {
                 let (data, file_path, is_disk) = match &f.data {
                     FileData::Memory(b) => (Buffer::from(b.as_ref()), String::new(), false),
-                    FileData::Disk(p) => (
-                        Buffer::from(&[] as &[u8]),
-                        p.to_string_lossy().to_string(),
-                        true,
-                    ),
+                    FileData::Disk(p) => {
+                        (Buffer::from(&[] as &[u8]), p.to_string_lossy().to_string(), true)
+                    }
                 };
                 UploadedFileNapi {
                     filename: f.filename.clone(),
@@ -303,11 +301,9 @@ pub fn get_file(core: &External<Arc<RequestCore>>, name: String) -> Option<Vec<U
             .map(|f| {
                 let (data, file_path, is_disk) = match &f.data {
                     FileData::Memory(b) => (Buffer::from(b.as_ref()), String::new(), false),
-                    FileData::Disk(p) => (
-                        Buffer::from(&[] as &[u8]),
-                        p.to_string_lossy().to_string(),
-                        true,
-                    ),
+                    FileData::Disk(p) => {
+                        (Buffer::from(&[] as &[u8]), p.to_string_lossy().to_string(), true)
+                    }
                 };
                 UploadedFileNapi {
                     filename: f.filename.clone(),

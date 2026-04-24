@@ -56,10 +56,7 @@ mod tests {
     #[test]
     fn test_extract_boundary_basic() {
         let ct = "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW";
-        assert_eq!(
-            extract_boundary(ct),
-            Some("----WebKitFormBoundary7MA4YWxkTrZu0gW".to_string())
-        );
+        assert_eq!(extract_boundary(ct), Some("----WebKitFormBoundary7MA4YWxkTrZu0gW".to_string()));
     }
 
     #[test]
@@ -221,28 +218,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_parse_multipart_text_fields() {
-        let (boundary, body) = build_multipart_body(
-            &[("username", "john"), ("email", "john@example.com")],
-            &[],
-        );
+        let (boundary, body) =
+            build_multipart_body(&[("username", "john"), ("email", "john@example.com")], &[]);
 
         let (fields, files) = parse_multipart(&boundary, body, &default_config()).await.unwrap();
 
         assert_eq!(fields.get("username").unwrap(), &vec!["john".to_string()]);
-        assert_eq!(
-            fields.get("email").unwrap(),
-            &vec!["john@example.com".to_string()]
-        );
+        assert_eq!(fields.get("email").unwrap(), &vec!["john@example.com".to_string()]);
         assert!(files.is_empty());
     }
 
     #[tokio::test]
     async fn test_parse_multipart_single_file() {
         let file_content = b"hello world";
-        let (boundary, body) = build_multipart_body(
-            &[],
-            &[("avatar", "test.txt", "text/plain", file_content)],
-        );
+        let (boundary, body) =
+            build_multipart_body(&[], &[("avatar", "test.txt", "text/plain", file_content)]);
 
         let (fields, files) = parse_multipart(&boundary, body, &default_config()).await.unwrap();
 
@@ -288,10 +278,7 @@ mod tests {
 
         let (fields, files) = parse_multipart(&boundary, body, &default_config()).await.unwrap();
 
-        assert_eq!(
-            fields.get("description").unwrap(),
-            &vec!["my photo".to_string()]
-        );
+        assert_eq!(fields.get("description").unwrap(), &vec!["my photo".to_string()]);
         assert_eq!(files.len(), 1);
         assert_eq!(files.get("photo").unwrap()[0].filename, "image.png");
     }
@@ -441,10 +428,8 @@ mod tests {
         };
 
         let big_data: Vec<u8> = vec![b'x'; 100];
-        let (boundary, body) = build_multipart_body(
-            &[],
-            &[("file", "big.txt", "text/plain", &big_data)],
-        );
+        let (boundary, body) =
+            build_multipart_body(&[], &[("file", "big.txt", "text/plain", &big_data)]);
 
         let result = parse_multipart(&boundary, body, &config).await;
         assert!(result.is_err());
@@ -471,10 +456,7 @@ mod tests {
         let data2: Vec<u8> = vec![b'b'; 20];
         let (boundary, body) = build_multipart_body(
             &[],
-            &[
-                ("file1", "a.txt", "text/plain", &data1),
-                ("file2", "b.txt", "text/plain", &data2),
-            ],
+            &[("file1", "a.txt", "text/plain", &data1), ("file2", "b.txt", "text/plain", &data2)],
         );
 
         let result = parse_multipart(&boundary, body, &config).await;
@@ -598,10 +580,7 @@ mod tests {
 
     #[test]
     fn test_upload_error_display_total_limit() {
-        let err = UploadError::TotalSizeExceeded {
-            limit: 5000,
-            actual: 8000,
-        };
+        let err = UploadError::TotalSizeExceeded { limit: 5000, actual: 8000 };
         let msg = err.to_string();
         assert!(msg.contains("5000"));
         assert!(msg.contains("8000"));
@@ -609,10 +588,8 @@ mod tests {
 
     #[test]
     fn test_upload_error_is_std_error() {
-        let err = UploadError::IoError(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "test error",
-        ));
+        let err =
+            UploadError::IoError(std::io::Error::new(std::io::ErrorKind::Other, "test error"));
         let _: &dyn std::error::Error = &err;
     }
 }

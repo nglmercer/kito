@@ -85,11 +85,7 @@ impl UploadedFile {
 
 #[derive(Debug)]
 pub enum UploadError {
-    SizeLimitExceeded {
-        field: String,
-        limit: usize,
-        actual: usize,
-    },
+    SizeLimitExceeded { field: String, limit: usize, actual: usize },
     TotalSizeExceeded { limit: usize, actual: usize },
     IoError(std::io::Error),
     MultipartError(multer::Error),
@@ -98,21 +94,11 @@ pub enum UploadError {
 impl std::fmt::Display for UploadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UploadError::SizeLimitExceeded {
-                field,
-                limit,
-                actual,
-            } => write!(
-                f,
-                "File '{}' exceeds size limit: {} > {}",
-                field, actual, limit
-            ),
+            UploadError::SizeLimitExceeded { field, limit, actual } => {
+                write!(f, "File '{}' exceeds size limit: {} > {}", field, actual, limit)
+            }
             UploadError::TotalSizeExceeded { limit, actual } => {
-                write!(
-                    f,
-                    "Total upload size exceeds limit: {} > {}",
-                    actual, limit
-                )
+                write!(f, "Total upload size exceeds limit: {} > {}", actual, limit)
             }
             UploadError::IoError(e) => write!(f, "IO error: {}", e),
             UploadError::MultipartError(e) => write!(f, "Multipart error: {}", e),
@@ -154,13 +140,7 @@ pub async fn parse_multipart(
     boundary: &str,
     data: Bytes,
     config: &UploadConfig,
-) -> Result<
-    (
-        HashMap<String, Vec<String>>,
-        HashMap<String, Vec<UploadedFile>>,
-    ),
-    UploadError,
-> {
+) -> Result<(HashMap<String, Vec<String>>, HashMap<String, Vec<UploadedFile>>), UploadError> {
     let stream = futures_util::stream::once(async { Ok::<Bytes, std::io::Error>(data) });
     let mut multipart = Multipart::new(stream, boundary);
 
@@ -171,7 +151,7 @@ pub async fn parse_multipart(
     while let Some(field) = multipart.next_field().await? {
         let name = field.name().unwrap_or_default().to_string();
         let filename = field.file_name().map(|s| {
-            let s = s.split(['/', '\\']).last().unwrap_or(s);
+            let s = s.split(['/', '\\']).next_back().unwrap_or(s);
             s.to_string()
         });
         let content_type = field
