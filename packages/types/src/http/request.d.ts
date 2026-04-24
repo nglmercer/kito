@@ -42,6 +42,26 @@ export interface ParsedUrl {
   query: Record<string, string | string[]>;
 }
 
+export interface UploadedFile {
+  filename: string;
+  contentType: string;
+  size: number;
+  data: Buffer;
+  filePath: string;
+  isDisk: boolean;
+}
+
+export interface UploadConfig {
+  memoryThreshold?: number;
+  maxFileSize?: number;
+  maxTotalSize?: number;
+  tempDir?: string;
+}
+
+export interface RequestFiles {
+  [fieldName: string]: UploadedFile | UploadedFile[];
+}
+
 export interface KitoRequest {
   get method(): string;
   get url(): string;
@@ -61,6 +81,7 @@ export interface KitoRequest {
   get secure(): boolean;
   get xhr(): boolean;
   get originalUrl(): string;
+  get files(): RequestFiles | undefined;
 
   header(name: CommonHeaderNames): string | undefined;
   header(name: string): string | undefined;
