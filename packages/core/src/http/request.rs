@@ -7,7 +7,9 @@ use hyper::{
 use napi::bindgen_prelude::{Buffer, External};
 
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
-use crate::http::multipart::{parse_multipart, UploadedFile};
+use crate::http::multipart::{
+    extract_boundary, parse_multipart, FileData, UploadConfig, UploadedFile,
+};
 
 #[derive(Clone)]
 pub struct RequestCore {
@@ -36,6 +38,15 @@ impl RequestCore {
         req: Request<Incoming>,
         remote_addr: Option<SocketAddr>,
         trust_proxy: bool,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        Self::new_with_config(req, remote_addr, trust_proxy, &UploadConfig::default()).await
+    }
+
+    pub async fn new_with_config(
+        req: Request<Incoming>,
+        remote_addr: Option<SocketAddr>,
+        trust_proxy: bool,
+        upload_config: &UploadConfig,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let method = req.method().as_str().to_string();
         let uri = req.uri();
@@ -112,30 +123,16 @@ impl RequestCore {
 
         let mut files = HashMap::new();
         if let Some(content_type) = headers_raw.get("content-type") {
-            if content_type.to_lowercase().starts_with("multipart/form-data") {
-                let boundary = content_type
-                    .split(';')
-                    .find_map(|s| {
-                        let s = s.trim();
-                        if s.to_lowercase().starts_with("boundary=") {
-                            let b = &s[9..];
-                            Some(b.trim_matches('"').to_string())
-                        } else {
-                            None
+            if let Some(boundary) = extract_boundary(content_type) {
+                match parse_multipart(&boundary, body.clone(), upload_config).await {
+                    Ok((fields, parsed_files)) => {
+                        for (key, values) in fields {
+                            query_raw.entry(key).or_default().extend(values);
                         }
-                    });
-
-                if let Some(boundary) = boundary {
-                    match parse_multipart(&boundary, body.clone()).await {
-                        Ok((fields, parsed_files)) => {
-                            for (key, values) in fields {
-                                query_raw.entry(key).or_default().extend(values);
-                            }
-                            files = parsed_files;
-                        }
-                        Err(e) => {
-                            eprintln!("Error parsing multipart body: {}", e);
-                        }
+                        files = parsed_files;
+                    }
+                    Err(e) => {
+                        eprintln!("Error parsing multipart body: {}", e);
                     }
                 }
             }
@@ -264,6 +261,8 @@ pub struct UploadedFileNapi {
     pub content_type: String,
     pub size: u32,
     pub data: Buffer,
+    pub file_path: String,
+    pub is_disk: bool,
 }
 
 #[napi]
@@ -272,11 +271,23 @@ pub fn get_all_files(core: &External<Arc<RequestCore>>) -> HashMap<String, Vec<U
     for (key, file_list) in &core.files {
         let napi_files: Vec<UploadedFileNapi> = file_list
             .iter()
-            .map(|f| UploadedFileNapi {
-                filename: f.filename.clone(),
-                content_type: f.content_type.clone(),
-                size: f.size as u32,
-                data: Buffer::from(f.data.as_ref()),
+            .map(|f| {
+                let (data, file_path, is_disk) = match &f.data {
+                    FileData::Memory(b) => (Buffer::from(b.as_ref()), String::new(), false),
+                    FileData::Disk(p) => (
+                        Buffer::from(&[] as &[u8]),
+                        p.to_string_lossy().to_string(),
+                        true,
+                    ),
+                };
+                UploadedFileNapi {
+                    filename: f.filename.clone(),
+                    content_type: f.content_type.clone(),
+                    size: f.size as u32,
+                    data,
+                    file_path,
+                    is_disk,
+                }
             })
             .collect();
         files.insert(key.clone(), napi_files);
@@ -289,12 +300,61 @@ pub fn get_file(core: &External<Arc<RequestCore>>, name: String) -> Option<Vec<U
     core.files.get(&name).map(|file_list| {
         file_list
             .iter()
-            .map(|f| UploadedFileNapi {
-                filename: f.filename.clone(),
-                content_type: f.content_type.clone(),
-                size: f.size as u32,
-                data: Buffer::from(f.data.as_ref()),
+            .map(|f| {
+                let (data, file_path, is_disk) = match &f.data {
+                    FileData::Memory(b) => (Buffer::from(b.as_ref()), String::new(), false),
+                    FileData::Disk(p) => (
+                        Buffer::from(&[] as &[u8]),
+                        p.to_string_lossy().to_string(),
+                        true,
+                    ),
+                };
+                UploadedFileNapi {
+                    filename: f.filename.clone(),
+                    content_type: f.content_type.clone(),
+                    size: f.size as u32,
+                    data,
+                    file_path,
+                    is_disk,
+                }
             })
             .collect()
     })
+}
+
+#[napi]
+pub fn get_file_path(core: &External<Arc<RequestCore>>, name: String) -> Option<String> {
+    core.files.get(&name).and_then(|file_list| {
+        file_list.first().and_then(|f| match &f.data {
+            FileData::Disk(p) => Some(p.to_string_lossy().to_string()),
+            FileData::Memory(_) => None,
+        })
+    })
+}
+
+#[napi]
+pub fn get_file_paths(core: &External<Arc<RequestCore>>) -> HashMap<String, Vec<String>> {
+    let mut paths = HashMap::new();
+    for (key, file_list) in &core.files {
+        let file_paths: Vec<String> = file_list
+            .iter()
+            .filter_map(|f| match &f.data {
+                FileData::Disk(p) => Some(p.to_string_lossy().to_string()),
+                FileData::Memory(_) => None,
+            })
+            .collect();
+        if !file_paths.is_empty() {
+            paths.insert(key.clone(), file_paths);
+        }
+    }
+    paths
+}
+
+#[napi]
+pub fn is_file_on_disk(core: &External<Arc<RequestCore>>, name: String) -> bool {
+    core.files
+        .get(&name)
+        .and_then(|file_list| file_list.first())
+        .map(|f| f.data.is_disk())
+        .unwrap_or(false)
 }

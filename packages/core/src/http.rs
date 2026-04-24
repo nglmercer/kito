@@ -4,5 +4,6 @@ pub mod files;
 pub mod mime;
 pub mod mime_tests;
 pub mod multipart;
+pub mod multipart_tests;
 pub mod request;
 pub mod response;

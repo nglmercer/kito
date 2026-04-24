@@ -231,6 +231,8 @@ export class RequestBuilder implements KitoRequest {
           contentType: f.contentType,
           size: f.size,
           data: f.data,
+          filePath: f.filePath,
+          isDisk: f.isDisk,
         }));
         this._files[key] = mappedFiles.length === 1 ? mappedFiles[0] : mappedFiles;
       }

@@ -47,6 +47,15 @@ export interface UploadedFile {
   contentType: string;
   size: number;
   data: Buffer;
+  filePath: string;
+  isDisk: boolean;
+}
+
+export interface UploadConfig {
+  memoryThreshold?: number;
+  maxFileSize?: number;
+  maxTotalSize?: number;
+  tempDir?: string;
 }
 
 export interface RequestFiles {
