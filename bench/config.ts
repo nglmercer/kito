@@ -5,6 +5,7 @@ type FrameworkRuntime = "bun" | "node";
 export default {
   frameworks: [
     "kito",
+    "bun",
     "elysia",
     "express",
     "fastify",
@@ -18,7 +19,7 @@ export default {
 
   connections: 100,
   pipelining: 10,
-  duration: 30,
+  duration: 5,
   workers: undefined,
 
   chart: {

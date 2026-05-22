@@ -56,4 +56,32 @@ export class ArraySchemaImpl<T extends SchemaType> implements ArraySchema<T> {
       item: (this.item as any)._serialize(),
     };
   }
+
+  toJsonSchema() {
+    const schema: any = {
+      type: "array",
+      items: this.item.toJsonSchema(),
+    };
+
+    if (this._default !== undefined) {
+      schema.default = this._default;
+    }
+
+    for (const constraint of this.constraints) {
+      switch (constraint.type) {
+        case "min":
+          schema.minItems = constraint.value;
+          break;
+        case "max":
+          schema.maxItems = constraint.value;
+          break;
+        case "length":
+          schema.minItems = constraint.value;
+          schema.maxItems = constraint.value;
+          break;
+      }
+    }
+
+    return schema;
+  }
 }

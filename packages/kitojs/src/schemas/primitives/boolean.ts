@@ -33,4 +33,14 @@ export class BooleanSchemaImpl implements BooleanSchema {
       default: this._default,
     };
   }
+
+  toJsonSchema() {
+    const schema: any = { type: "boolean" };
+
+    if (this._default !== undefined) {
+      schema.default = this._default;
+    }
+
+    return schema;
+  }
 }

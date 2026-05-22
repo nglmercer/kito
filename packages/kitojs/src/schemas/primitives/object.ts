@@ -47,4 +47,31 @@ export class ObjectSchemaImpl<T extends Record<string, SchemaType>>
       shape,
     };
   }
+
+  toJsonSchema() {
+    const properties: any = {};
+    const required: string[] = [];
+
+    for (const [key, schema] of Object.entries(this.shape)) {
+      properties[key] = schema.toJsonSchema();
+      if (!schema._optional) {
+        required.push(key);
+      }
+    }
+
+    const schema: any = {
+      type: "object",
+      properties,
+    };
+
+    if (required.length > 0) {
+      schema.required = required;
+    }
+
+    if (this._default !== undefined) {
+      schema.default = this._default;
+    }
+
+    return schema;
+  }
 }

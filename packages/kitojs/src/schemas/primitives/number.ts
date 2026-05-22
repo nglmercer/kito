@@ -61,4 +61,36 @@ export class NumberSchemaImpl implements NumberSchema {
       constraints: this.constraints,
     };
   }
+
+  toJsonSchema() {
+    const schema: any = { type: "number" };
+
+    if (this._default !== undefined) {
+      schema.default = this._default;
+    }
+
+    for (const constraint of this.constraints) {
+      switch (constraint.type) {
+        case "min":
+          schema.minimum = constraint.value;
+          break;
+        case "max":
+          schema.maximum = constraint.value;
+          break;
+        case "int":
+          schema.type = "integer";
+          break;
+        case "positive":
+          schema.minimum = 0;
+          schema.exclusiveMinimum = true;
+          break;
+        case "negative":
+          schema.maximum = 0;
+          schema.exclusiveMaximum = true;
+          break;
+      }
+    }
+
+    return schema;
+  }
 }

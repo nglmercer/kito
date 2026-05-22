@@ -1,0 +1,22 @@
+{
+	"machine": {
+		"cpu": "Intel(R) Xeon(R) Processor @ 2.30GHz",
+		"memory": "8 GB",
+		"platform": "linux 6.8.0"
+	},
+	"runtime": "bun",
+	"framework": "bun",
+	"results": {
+		"requests": {
+			"average": 15918.4
+		},
+		"latency": {
+			"average": 62.13
+		},
+		"throughput": {
+			"average": 2037555.2
+		}
+	},
+	"previousResults": null,
+	"comparison": null
+}
