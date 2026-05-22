@@ -35,6 +35,46 @@ export class KitoRouter<TExtensions = {}>
   protected middlewares: MiddlewareDefinition[] = [];
   protected prefix = "";
 
+  protected fuseMiddlewares<TSchema extends SchemaDefinition>(
+    globals: MiddlewareDefinition[],
+    routeMiddlewares: MiddlewareDefinition[],
+    handler: RouteHandler<TSchema, TExtensions>,
+  ): RouteHandler<TSchema, TExtensions> {
+    const functions = [
+      ...globals
+        .filter((m) => m.type === "function" && m.handler)
+        // biome-ignore lint/style/noNonNullAssertion: ...
+        .map((m) => m.handler!),
+      ...routeMiddlewares
+        .filter((m) => m.type === "function" && m.handler)
+        // biome-ignore lint/style/noNonNullAssertion: ...
+        .map((m) => m.handler!),
+    ];
+
+    if (functions.length === 0)
+      return handler as RouteHandler<TSchema, TExtensions>;
+
+    // biome-ignore lint/suspicious/noExplicitAny: ...
+    return async (ctx: any) => {
+      let i = 0;
+      // biome-ignore lint/suspicious/noExplicitAny: ...
+      const next = async (): Promise<any> => {
+        if (i < functions.length) {
+          const fn = functions[i++];
+          return fn(ctx, next);
+        } else {
+          return handler(ctx);
+        }
+      };
+      return next();
+    };
+  }
+
+  // biome-ignore lint/suspicious/noExplicitAny: ...
+  protected isSchemaDefinition(item: any): item is SchemaDefinition {
+    return item && (item.params || item.query || item.body || item.headers);
+  }
+
   /**
    * Registers a global middleware that runs for all routes in this router.
    *
@@ -752,17 +792,204 @@ export class KitoRouter<TExtensions = {}>
     });
   }
 
-  // biome-ignore lint/suspicious/noExplicitAny: ...
-  protected isSchemaDefinition(item: any): item is SchemaDefinition {
-    return item && (item.params || item.query || item.body || item.headers);
-  }
-
   protected getRoutes(): RouteDefinition<TExtensions>[] {
     return this.routes;
   }
 
   protected getMiddlewares(): MiddlewareDefinition[] {
     return this.middlewares;
+  }
+
+  /**
+   * Performs a mock request to the router.
+   * Useful for testing without starting a real server.
+   *
+   * @param path - The path to request. Can be relative to the router's base.
+   * @param options - Request options (method, headers, query, body)
+   *
+   * @example
+   * ```typescript
+   * const res = await router.request('/users', { method: 'GET' });
+   * expect(res.status).toBe(200);
+   * ```
+   */
+  async request(
+    path: string,
+    options: {
+      method?: HttpMethod;
+      headers?: Record<string, string>;
+      query?: Record<string, string | string[]>;
+      // biome-ignore lint/suspicious/noExplicitAny: ...
+      body?: any;
+    } = {},
+  ): Promise<{
+    status: number;
+    headers: Record<string, string>;
+    // biome-ignore lint/suspicious/noExplicitAny: ...
+    body: any;
+    // biome-ignore lint/suspicious/noExplicitAny: ...
+    json<T = any>(): T;
+    text(): string;
+  }> {
+    const method = (options.method?.toUpperCase() || "GET") as HttpMethod;
+    const url = new URL(path, "http://localhost");
+    const normalizedPath = this.normalizePath(url.pathname);
+
+    // Initial query from URL
+    const query = { ...options.query };
+    url.searchParams.forEach((value, key) => {
+      if (query[key]) {
+        if (Array.isArray(query[key])) {
+          (query[key] as string[]).push(value);
+        } else {
+          query[key] = [query[key] as string, value];
+        }
+      } else {
+        query[key] = value;
+      }
+    });
+
+    // Find matching route
+    let matchedRoute: RouteDefinition<TExtensions> | undefined;
+    let params: Record<string, string> = {};
+
+    for (const route of this.routes) {
+      if (route.method !== method) continue;
+
+      const match = this.matchPath(route.path, normalizedPath);
+      if (match) {
+        matchedRoute = route;
+        params = match.params;
+        break;
+      }
+    }
+
+    if (!matchedRoute) {
+      return {
+        status: 404,
+        headers: {},
+        body: "Not Found",
+        json: () => {
+          throw new Error("Not a JSON response");
+        },
+        text: () => "Not Found",
+      };
+    }
+
+    // Mock Context
+    const reqHeaders: Record<string, string> = {};
+    if (options.headers) {
+      for (const [key, value] of Object.entries(options.headers)) {
+        reqHeaders[key.toLowerCase()] = value;
+      }
+    }
+
+    const resState = {
+      status: 200,
+      headers: {} as Record<string, string>,
+      // biome-ignore lint/suspicious/noExplicitAny: ...
+      body: undefined as any,
+    };
+
+    const mockCtx: any = {
+      req: {
+        method,
+        url: path,
+        pathname: normalizedPath,
+        headers: reqHeaders,
+        query,
+        params,
+        body: options.body,
+        header: (name: string) => reqHeaders[name.toLowerCase()],
+        // biome-ignore lint/suspicious/noExplicitAny: ...
+        json: () => options.body as any,
+        text: () => String(options.body),
+      },
+      res: {
+        status: (code: number) => {
+          resState.status = code;
+          return mockCtx.res;
+        },
+        header: (name: string, value: string) => {
+          resState.headers[name.toLowerCase()] = value;
+          return mockCtx.res;
+        },
+        send: (data: any) => {
+          resState.body = data;
+          return mockCtx.res;
+        },
+        json: (data: any) => {
+          resState.headers["content-type"] = "application/json";
+          resState.body = data;
+          return mockCtx.res;
+        },
+        sendStatus: (code: number) => {
+          resState.status = code;
+          return mockCtx.res;
+        },
+      },
+    };
+
+    const routeMiddlewares: MiddlewareDefinition[] = [];
+    for (const item of matchedRoute.middlewares) {
+      if (!this.isSchemaDefinition(item)) {
+        routeMiddlewares.push(item as MiddlewareDefinition);
+      }
+    }
+
+    const fusedHandler = this.fuseMiddlewares(
+      this.middlewares,
+      routeMiddlewares,
+      matchedRoute.handler,
+    );
+
+    await fusedHandler(mockCtx);
+
+    return {
+      status: resState.status,
+      headers: resState.headers,
+      body: resState.body,
+      json: <T>() => resState.body as T,
+      text: () => String(resState.body),
+    };
+  }
+
+  private matchPath(
+    routePath: string,
+    requestPath: string,
+  ): { params: Record<string, string> } | null {
+    const routeParts = routePath.split("/").filter(Boolean);
+    const requestParts = requestPath.split("/").filter(Boolean);
+
+    if (
+      routeParts.length !== requestParts.length &&
+      !routePath.includes("*") &&
+      !routePath.includes("{*")
+    ) {
+      return null;
+    }
+
+    const params: Record<string, string> = {};
+
+    for (let i = 0; i < routeParts.length; i++) {
+      const routePart = routeParts[i];
+      const requestPart = requestParts[i];
+
+      if (routePart.startsWith(":")) {
+        params[routePart.slice(1)] = requestPart;
+      } else if (
+        routePart === "*" ||
+        (routePart.startsWith("{*") && routePart.endsWith("}"))
+      ) {
+        // Simple wildcard match for remaining parts
+        params["path"] = requestParts.slice(i).join("/");
+        return { params };
+      } else if (routePart !== requestPart) {
+        return null;
+      }
+    }
+
+    return { params };
   }
 
   private normalizePath(path: string): string {

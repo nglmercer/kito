@@ -221,4 +221,20 @@ export interface KitoRouterInstance<TExtensions = {}> {
     path: string,
     middlewares: MiddlewareDefinition[] | MiddlewareDefinition,
   ): RouteChain<TExtensions>;
+
+  request(
+    path: string,
+    options?: {
+      method?: HttpMethod;
+      headers?: Record<string, string>;
+      query?: Record<string, string | string[]>;
+      body?: any;
+    },
+  ): Promise<{
+    status: number;
+    headers: Record<string, string>;
+    body: any;
+    json<T = any>(): T;
+    text(): string;
+  }>;
 }
