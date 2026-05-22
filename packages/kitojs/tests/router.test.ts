@@ -1,4 +1,3 @@
-import type { Route } from "@kitojs/kito-core";
 import type { MiddlewareDefinition } from "@kitojs/types";
 import { describe, expect, it, vi } from "vitest";
 import { middleware, router, server } from "../src";
@@ -95,36 +94,9 @@ describe("Router", () => {
         throw new Error("Middleware Error");
       });
 
-      // biome-ignore lint/complexity/useLiteralKeys: ...
-      const addRouteSpy = vi.spyOn(app["coreServer"], "addRoute");
-
       app.get("/error", [mw], (ctx) => ctx.res.send("ok"));
 
-      const call = addRouteSpy.mock.calls.find(
-        (c) => (c[0] as Route).path === "/error",
-      );
-      if (!call) throw new Error("Route not registered");
-      const handler = (call[0] as Route).handler;
-
-      const mockCtx = {
-        req: {
-          method: "GET",
-          url: "/error",
-          headers: {},
-          params: {},
-          query: {},
-          body: {},
-        },
-        res: {
-          status: vi.fn().mockReturnThis(),
-          send: vi.fn().mockReturnThis(),
-          json: vi.fn().mockReturnThis(),
-          header: vi.fn().mockReturnThis(),
-          cookie: vi.fn().mockReturnThis(),
-        },
-      };
-
-      await expect(handler(mockCtx)).rejects.toThrow("Middleware Error");
+      await expect(app.request("/error")).rejects.toThrow("Middleware Error");
     });
   });
 
@@ -455,45 +427,9 @@ describe("Router", () => {
       const sub = router();
       sub.get("/test", [mw], (ctx) => ctx.res.send("ok"));
 
-      // biome-ignore lint/complexity/useLiteralKeys: ...
-      const addRouteSpy = vi.spyOn(app["coreServer"], "addRoute");
-
       app.mount("/api", sub);
 
-      expect(addRouteSpy).toHaveBeenCalled();
-
-      // Find the registered handler for the mounted route
-      const call = addRouteSpy.mock.calls.find(
-        (c) => (c[0] as Route).path === "/api/test",
-      );
-      expect(call).toBeDefined();
-
-      const registeredHandler = (call as [Route])[0].handler;
-
-      // Mock context to simulate server execution
-      const mockCtx = {
-        req: {
-          method: "GET",
-          url: "/api/test",
-          headers: {},
-          params: {},
-          query: {},
-          body: {},
-        },
-        res: {
-          status: vi.fn().mockReturnThis(),
-          send: vi.fn().mockReturnThis(),
-          json: vi.fn().mockReturnThis(),
-          header: vi.fn().mockReturnThis(),
-          cookie: vi.fn().mockReturnThis(),
-        },
-      };
-
-      try {
-        await registeredHandler(mockCtx);
-      } catch (_e) {
-        // Ignore potential channel/response builder errors in mock environment
-      }
+      await app.request("/api/test");
 
       // Verification: The middleware on the sub-router MUST have been called
       expect(mwCalled).toHaveBeenCalled();
@@ -511,43 +447,9 @@ describe("Router", () => {
       sub.get("/test", (ctx) => ctx.res.send("ok"));
 
       const app = server();
-      // biome-ignore lint/complexity/useLiteralKeys: ...
-      const addRouteSpy = vi.spyOn(app["coreServer"], "addRoute");
-
       app.mount("/api", sub);
 
-      expect(addRouteSpy).toHaveBeenCalled();
-
-      const call = addRouteSpy.mock.calls.find(
-        (c) => (c[0] as Route).path === "/api/test",
-      );
-      expect(call).toBeDefined();
-
-      const registeredHandler = (call?.[0] as Route).handler;
-
-      const mockCtx = {
-        req: {
-          method: "GET",
-          url: "/api/test",
-          headers: {},
-          params: {},
-          query: {},
-          body: {},
-        },
-        res: {
-          status: vi.fn().mockReturnThis(),
-          send: vi.fn().mockReturnThis(),
-          json: vi.fn().mockReturnThis(),
-          header: vi.fn().mockReturnThis(),
-          cookie: vi.fn().mockReturnThis(),
-        },
-      };
-
-      try {
-        await registeredHandler(mockCtx);
-      } catch (_e) {
-        // Ignore crashes
-      }
+      await app.request("/api/test");
 
       expect(mwCalled).toHaveBeenCalled();
     });

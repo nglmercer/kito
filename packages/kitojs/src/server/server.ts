@@ -309,40 +309,6 @@ export class KitoServer<TExtensions = {}>
     }
   }
 
-  private fuseMiddlewares<TSchema extends SchemaDefinition>(
-    globals: MiddlewareDefinition[],
-    routeMiddlewares: MiddlewareDefinition[],
-    handler: RouteHandler<TSchema, TExtensions>,
-  ): RouteHandler<TSchema, TExtensions> {
-    const functions = [
-      ...globals
-        .filter((m) => m.type === "function" && m.handler)
-        // biome-ignore lint/style/noNonNullAssertion: ...
-        .map((m) => m.handler!),
-      ...routeMiddlewares
-        .filter((m) => m.type === "function" && m.handler)
-        // biome-ignore lint/style/noNonNullAssertion: ...
-        .map((m) => m.handler!),
-    ];
-
-    if (functions.length === 0)
-      return handler as RouteHandler<TSchema, TExtensions>;
-
-    // biome-ignore lint/suspicious/noExplicitAny: ...
-    return async (ctx: any) => {
-      let i = 0;
-      // biome-ignore lint/suspicious/noExplicitAny: ...
-      const next = async (): Promise<any> => {
-        if (i < functions.length) {
-          const fn = functions[i++];
-          return fn(ctx, next);
-        } else {
-          return handler(ctx);
-        }
-      };
-      return next();
-    };
-  }
 
   /**
    * Starts the server.
