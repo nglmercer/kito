@@ -414,6 +414,53 @@ export class KitoServer<TExtensions = {}>
   close(): void {
     this.coreServer.close();
   }
+
+  /**
+   * Returns the definitions of all registered routes, including their JSON schemas.
+   *
+   * @returns Array of route definitions
+   */
+  getDefinitions(): any[] {
+    return this.routes.map((route) => {
+      let routeSchema: SchemaDefinition | undefined;
+
+      for (const item of route.middlewares) {
+        if (this.isSchemaDefinition(item)) {
+          routeSchema = item;
+          break;
+        }
+      }
+
+      const definitions: any = {
+        method: route.method,
+        path: route.path,
+      };
+
+      if (routeSchema) {
+        definitions.schema = {};
+        if (routeSchema.params) {
+          definitions.schema.params = routeSchema.params.toJsonSchema();
+        }
+        if (routeSchema.query) {
+          definitions.schema.query = routeSchema.query.toJsonSchema();
+        }
+        if (routeSchema.body) {
+          definitions.schema.body = routeSchema.body.toJsonSchema();
+        }
+        if (routeSchema.headers) {
+          definitions.schema.headers = routeSchema.headers.toJsonSchema();
+        }
+        if (routeSchema.response) {
+          definitions.schema.response = {};
+          for (const [status, schema] of Object.entries(routeSchema.response)) {
+            definitions.schema.response[status] = schema.toJsonSchema();
+          }
+        }
+      }
+
+      return definitions;
+    });
+  }
 }
 
 /**

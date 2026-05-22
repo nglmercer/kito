@@ -38,4 +38,16 @@ export class UnionSchemaImpl<T extends SchemaType[]> implements UnionSchema<T> {
       schemas: this.schemas.map((s) => (s as any)._serialize()),
     };
   }
+
+  toJsonSchema() {
+    const schema: any = {
+      anyOf: this.schemas.map((s) => s.toJsonSchema()),
+    };
+
+    if (this._default !== undefined) {
+      schema.default = this._default;
+    }
+
+    return schema;
+  }
 }

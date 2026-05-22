@@ -38,4 +38,18 @@ export class LiteralSchemaImpl<T extends string | number | boolean>
       value: this.value,
     };
   }
+
+  toJsonSchema() {
+    const type = typeof this.value;
+    const schema: any = {
+      type: type === "string" ? "string" : type === "number" ? "number" : "boolean",
+      const: this.value,
+    };
+
+    if (this._default !== undefined) {
+      schema.default = this._default;
+    }
+
+    return schema;
+  }
 }

@@ -71,4 +71,41 @@ export class StringSchemaImpl implements StringSchema {
       constraints: this.constraints,
     };
   }
+
+  toJsonSchema() {
+    const schema: any = { type: "string" };
+
+    if (this._default !== undefined) {
+      schema.default = this._default;
+    }
+
+    for (const constraint of this.constraints) {
+      switch (constraint.type) {
+        case "min":
+          schema.minLength = constraint.value;
+          break;
+        case "max":
+          schema.maxLength = constraint.value;
+          break;
+        case "length":
+          schema.minLength = constraint.value;
+          schema.maxLength = constraint.value;
+          break;
+        case "email":
+          schema.format = "email";
+          break;
+        case "url":
+          schema.format = "uri";
+          break;
+        case "uuid":
+          schema.format = "uuid";
+          break;
+        case "regex":
+          schema.pattern = constraint.value.source;
+          break;
+      }
+    }
+
+    return schema;
+  }
 }

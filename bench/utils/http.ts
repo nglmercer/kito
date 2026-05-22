@@ -1,7 +1,7 @@
-import { exec } from "node:child_process";
 import config from "../config.ts";
+import { spawn } from "node:child_process";
 
-const { duration, connections } = config;
+const { duration, connections, pipelining } = config;
 
 export type WrkResult = {
   requests: { average: number };
@@ -11,44 +11,38 @@ export type WrkResult = {
 
 export const runBenchmark = (url: string) => {
   return new Promise<WrkResult>((resolve, reject) => {
-    const cmd = `wrk -t${connections} -c${connections} -d${duration}s -H "Connection: keep-alive" ${url}`;
+    const args = [
+        "dlx", "autocannon",
+        "-c", String(connections),
+        "-p", String(pipelining),
+        "-d", String(duration),
+        "--json",
+        url
+    ];
 
-    exec(cmd, (err, stdout) => {
-      if (err) {
-        reject(err);
-        return;
-      }
+    let stdout = "";
+    const child = spawn("pnpm", args);
 
-      const output = stdout.toString();
+    child.stdout.on("data", (data) => {
+        stdout += data.toString();
+    });
 
-      const reqMatch = output.match(/Requests\/sec:\s*([\d.]+)/);
-      const requests = reqMatch ? parseFloat(reqMatch[1]) : 0;
+    child.on("close", (code) => {
+        if (code !== 0) {
+            reject(new Error("autocannon failed"));
+            return;
+        }
 
-      const latMatch = output.match(/Latency\s+([\d.]+)(ms|s|us)/);
-      let latency = 0;
-      if (latMatch) {
-        const v = parseFloat(latMatch[1]);
-        const unit = latMatch[2];
-        if (unit === "s") latency = v * 1000;
-        else if (unit === "us") latency = v / 1000;
-        else latency = v;
-      }
-
-      const tpMatch = output.match(/Transfer\/sec:\s*([\d.]+)(KB|MB|B)/);
-      let throughput = 0;
-      if (tpMatch) {
-        const v = parseFloat(tpMatch[1]);
-        const unit = tpMatch[2];
-        if (unit === "MB") throughput = v * 1024 * 1024;
-        else if (unit === "KB") throughput = v * 1024;
-        else throughput = v;
-      }
-
-      resolve({
-        requests: { average: requests },
-        latency: { average: latency },
-        throughput: { average: throughput },
-      });
+        try {
+            const result = JSON.parse(stdout);
+            resolve({
+                requests: { average: result.requests.average },
+                latency: { average: result.latency.average },
+                throughput: { average: result.throughput.average },
+            });
+        } catch (e) {
+            reject(e);
+        }
     });
   });
 };
