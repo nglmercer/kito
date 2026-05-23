@@ -247,5 +247,11 @@ describe("Server", () => {
       expect(res.status).toBe(200);
       expect(res.body).toBe("world");
     });
+
+    it("should return 404 for non-existent route", async () => {
+      const testApp = server();
+      const res = await testApp.request("/non-existent");
+      expect(res.status).toBe(404);
+    });
   });
 });

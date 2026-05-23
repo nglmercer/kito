@@ -27,11 +27,12 @@ import {
   getSecure,
   getXhr,
   getAllFiles,
+  getWebsocketUpgradeId,
+  getWebsocketAcceptKey,
 } from "@kitojs/kito-core";
 
 export class RequestBuilder implements KitoRequest {
-  // biome-ignore lint/suspicious/noExplicitAny: ...
-  private core: any;
+  private core: unknown;
 
   // biome-ignore lint/complexity/noBannedTypes: ...
   private _body?: Buffer | JSON | {};
@@ -51,14 +52,12 @@ export class RequestBuilder implements KitoRequest {
   private _xhr?: boolean;
   private _files?: RequestFiles;
 
-  // biome-ignore lint/suspicious/noExplicitAny: ...
-  constructor(requestCore: any) {
+  constructor(requestCore: unknown) {
     this.core = requestCore;
   }
 
-  // biome-ignore lint/suspicious/noExplicitAny: ...
-  get body(): any {
-    if (this._body) return this._body;
+  get body(): unknown {
+    if (this._body !== undefined) return this._body;
 
     const buf = getBodyBuffer(this.core);
     const type = this.header("content-type") ?? "";
@@ -257,6 +256,15 @@ export class RequestBuilder implements KitoRequest {
 
   get originalUrl(): string {
     return this.url;
+  }
+
+  get upgrade(): import("@kitojs/types").WebSocketUpgradeInfo | undefined {
+    const id = getWebsocketUpgradeId(this.core);
+    if (id === null || id === undefined) return undefined;
+    return {
+      id: typeof id === "bigint" ? Number(id) : (id as number),
+      acceptKey: getWebsocketAcceptKey(this.core) || "",
+    };
   }
 
   accepts(...types: string[]): string | false {

@@ -95,10 +95,9 @@ pub async fn handle_request(
         .map(|v| v.to_lowercase() == "websocket")
         .unwrap_or(false);
 
-    let ws_upgrade_id = if is_ws_upgrade {
-        req.extensions_mut()
-            .remove::<OnUpgrade>()
-            .map(ws::store_upgrade)
+    let ws_handshake = if is_ws_upgrade {
+        let key = req.headers().get("sec-websocket-key").cloned();
+        req.extensions_mut().remove::<OnUpgrade>().map(|u| ws::store_upgrade(u, key.as_ref()))
     } else {
         None
     };
@@ -127,7 +126,10 @@ pub async fn handle_request(
     };
 
     req_core.params = matched.params.into_iter().collect();
-    req_core.websocket_upgrade_id = ws_upgrade_id;
+    if let Some(handshake) = ws_handshake {
+        req_core.websocket_upgrade_id = Some(handshake.upgrade_id);
+        req_core.websocket_accept_key = Some(handshake.accept_key);
+    }
 
     if let Some(schema) = &route.schema {
         if let Some(params_schema) = &schema.params

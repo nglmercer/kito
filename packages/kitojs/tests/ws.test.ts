@@ -41,5 +41,33 @@ describe("WebSocket", () => {
       }).not.toThrow();
       app.close();
     });
+
+    it("should handle a successful WebSocket upgrade", async () => {
+      const app = server();
+      let handlerCalled = false;
+      let sentMessage = "";
+
+      app.get(
+        "/ws",
+        ws((_ctx, client) => {
+          handlerCalled = true;
+          client.send("hello");
+        }),
+      );
+
+      // Mock wsSend to capture the message
+      const core = (await import("@kitojs/kito-core")) as any;
+      core.setWsSend((_sender: any, msg: string) => {
+        sentMessage = msg;
+      });
+
+      await app.request("/ws", {
+        upgrade: { id: 123 },
+      } as any);
+
+      expect(handlerCalled).toBe(true);
+      expect(sentMessage).toBe("hello");
+      app.close();
+    });
   });
 });

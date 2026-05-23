@@ -82,6 +82,7 @@ export interface KitoRequest {
   get xhr(): boolean;
   get originalUrl(): string;
   get files(): RequestFiles | undefined;
+  get upgrade(): unknown | undefined;
 
   header(name: CommonHeaderNames): string | undefined;
   header(name: string): string | undefined;

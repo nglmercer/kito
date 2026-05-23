@@ -1,0 +1,3 @@
+Running example: fluent/ws
+WS Chat running at http://localhost:3002
+Commands via JSON: join, leave, channel, broadcast, channels, ping

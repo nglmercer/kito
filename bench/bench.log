@@ -1,0 +1,60 @@
+Running WS benchmark: 50 connections for 10s
+
+Starting kito on node...
+Benchmarking kito...
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+WebSocket error: null
+kito results:
+  Messages/sec: 0.00
+  Avg Latency:  0.00ms
+
+Starting bun on bun...
+Benchmarking bun...

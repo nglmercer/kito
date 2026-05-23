@@ -20,34 +20,46 @@ export function ws<TExtensions = {}, TSchema extends SchemaDefinition = {}>(
   handler: WebSocketHandler,
 ): RouteHandler<TSchema, TExtensions> {
   return async (ctx: KitoContext<TSchema> & TExtensions) => {
-    const req = ctx.req as Record<string, unknown>;
-    const upgrade = req.upgrade as Record<string, unknown> | undefined;
+    const upgrade = ctx.req.upgrade;
 
     if (!upgrade) {
       ctx.res.status(400).json({ error: "Not a WebSocket upgrade request" });
       return;
     }
 
+    ctx.res
+      .status(101)
+      .header("Upgrade", "websocket")
+      .header("Connection", "Upgrade")
+      .header("Sec-WebSocket-Accept", upgrade.acceptKey)
+      .end();
+
     try {
       // Use tryRequire for the native module
-      const native = await import("@kitojs/kito-core");
-      const acceptWebsocket = native.acceptWebsocket as (
-        upgrade: unknown,
-        onMessage: (msg: string) => void,
-        onError: (err: string) => void,
-        onClose: () => void,
-      // biome-ignore lint/suspicious/noExplicitAny: ...
-      ) => any;
-      const wsSend = native.wsSend as (sender: unknown, msg: string) => void;
-      const wsClose = native.wsClose as (sender: unknown) => void;
+      const { acceptWebsocket, wsSend, wsClose } = (await import(
+        "@kitojs/kito-core"
+      )) as unknown as {
+        acceptWebsocket: (
+          upgrade: unknown,
+          onMessage: (msg: string) => void,
+          onError: (err: string) => void,
+          onClose: () => void,
+        ) => unknown;
+        wsSend: (sender: unknown, msg: string) => void;
+        wsClose: (sender: unknown) => void;
+      };
 
       const client: WebSocketClient = {
-        send: () => {},
-        close: () => {},
+        send: (msg: string) => {
+          if (sender) wsSend(sender, msg);
+        },
+        close: () => {
+          if (sender) wsClose(sender);
+        },
       };
 
       const sender = acceptWebsocket(
-        upgrade,
+        upgrade.id,
         (msg: string) => {
           if (client.onmessage) {
             client.onmessage(msg);
@@ -60,19 +72,22 @@ export function ws<TExtensions = {}, TSchema extends SchemaDefinition = {}>(
             console.error("WebSocket error:", err);
           }
         },
-        () => {},
+        () => {
+          if (client.onclose) {
+            client.onclose();
+          }
+        },
       );
-
-      client.send = (msg: string) => wsSend(sender, msg);
-      client.close = () => wsClose(sender);
 
       handler(ctx, client);
     } catch (e) {
-      ctx.res.status(500).json({
-        error: "WebSocket upgrade failed",
-        // biome-ignore lint/suspicious/noExplicitAny: ...
-        message: (e as any)?.message ?? String(e),
-      });
+      if (!(e instanceof Error && e.message === "Response already sent")) {
+        ctx.res.status(500).json({
+          error: "WebSocket upgrade failed",
+          // biome-ignore lint/suspicious/noExplicitAny: ...
+          message: (e as any)?.message ?? String(e),
+        });
+      }
     }
   };
 }

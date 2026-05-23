@@ -45,7 +45,13 @@ export const acceptWebsocket = (
   return sender;
 };
 
-export const wsSend = (_sender: unknown, _msg: string) => {};
+export let wsSend = (_sender: unknown, _msg: string) => {};
+
+export function setWsSend(fn: (sender: unknown, msg: string) => void) {
+  wsSend = fn;
+}
 export const wsClose = (_sender: unknown) => {};
 
-export const getWebsocketUpgradeId = () => null;
+export const getWebsocketUpgradeId = (core: any) => {
+  return core.websocket_upgrade_id || null;
+};

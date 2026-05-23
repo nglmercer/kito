@@ -32,6 +32,7 @@ pub struct RequestCore {
     pub cookies_raw: HashMap<String, String>,
     pub files: HashMap<String, Vec<UploadedFile>>,
     pub websocket_upgrade_id: Option<i64>,
+    pub websocket_accept_key: Option<String>,
 }
 
 impl RequestCore {
@@ -165,6 +166,7 @@ impl RequestCore {
             cookies_raw,
             files,
             websocket_upgrade_id: None,
+            websocket_accept_key: None,
         })
     }
 }
@@ -266,7 +268,12 @@ pub fn get_xhr(core: &External<Arc<RequestCore>>) -> bool {
 
 #[napi]
 pub fn get_websocket_upgrade_id(core: &External<Arc<RequestCore>>) -> Option<i64> {
-    core.websocket_upgrade_id.map(|id| id as i64)
+    core.websocket_upgrade_id
+}
+
+#[napi]
+pub fn get_websocket_accept_key(core: &External<Arc<RequestCore>>) -> Option<String> {
+    core.websocket_accept_key.clone()
 }
 
 #[napi(object)]

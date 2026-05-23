@@ -1273,6 +1273,7 @@ export class KitoRouter<
         header: (name: string) => reqHeaders[name.toLowerCase()],
         json: <T = unknown>() => options.body as T,
         text: () => String(options.body),
+        upgrade: (options as any).upgrade,
       },
       res: {
         status: (code: number) => {
@@ -1294,6 +1295,9 @@ export class KitoRouter<
         },
         sendStatus: (code: number) => {
           resState.status = code;
+          return mockCtx.res;
+        },
+        end: () => {
           return mockCtx.res;
         },
       },

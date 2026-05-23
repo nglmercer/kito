@@ -1,0 +1,5 @@
+
+> kito@1.0.0 ex:run /app
+> pnpm --filter examples ex:run --style fluent --example ws
+
+No projects matched the filters in "/app"

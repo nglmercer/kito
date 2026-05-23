@@ -54,6 +54,6 @@ mod tests {
             .body(http_body_util::Full::new(hyper::body::Bytes::new()))
             .unwrap();
         let upgrade = hyper::upgrade::on(req);
-        super::super::ws::store_upgrade(upgrade);
+        super::super::ws::store_upgrade(upgrade, None);
     }
 }

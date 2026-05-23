@@ -119,7 +119,10 @@ impl ServerCore {
                     tokio::spawn(async move {
                         if let Err(err) = http1::Builder::new()
                             .serve_connection(io, hyper::service::service_fn(move |req| {
-                                handle_request(req, config.clone(), Some(remote_addr))
+                                let config = config.clone();
+                                async move {
+                                    handle_request(req, config, Some(remote_addr)).await
+                                }
                             }))
                             .await
                         {

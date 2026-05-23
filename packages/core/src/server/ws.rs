@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use once_cell::sync::Lazy;
 
 use futures_util::{SinkExt, StreamExt};
+use hyper::header::HeaderValue;
 use hyper::upgrade::OnUpgrade;
 use hyper_util::rt::TokioIo;
 use napi::{
@@ -15,19 +16,39 @@ use tokio_tungstenite::tungstenite::Message;
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 static UPGRADES: Lazy<Mutex<HashMap<i64, OnUpgrade>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
+static WS_RUNTIME: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .thread_name("kito-ws-runtime")
+        .build()
+        .expect("Failed to create WebSocket runtime")
+});
 
 /// A sender for WebSocket messages
 pub struct WsMessageSender {
     pub tx: tokio::sync::mpsc::UnboundedSender<Message>,
 }
 
-/// Store a pending WebSocket upgrade. Returns an ID for JS to reference.
-/// Called from handler.rs when a WS upgrade request is detected.
-pub fn store_upgrade(upgrade: OnUpgrade) -> i64 {
+#[napi(object)]
+pub struct WebSocketHandshake {
+    pub upgrade_id: i64,
+    pub accept_key: String,
+}
+
+/// Store a pending WebSocket upgrade. Returns handshake info for JS.
+pub fn store_upgrade(upgrade: OnUpgrade, key: Option<&HeaderValue>) -> WebSocketHandshake {
     let id = NEXT_ID.fetch_add(1, Ordering::SeqCst) as i64;
     let mut registry = UPGRADES.lock();
     registry.insert(id, upgrade);
-    id
+
+    let accept_key = if let Some(key) = key {
+        let key_bytes = key.as_bytes();
+        tokio_tungstenite::tungstenite::handshake::derive_accept_key(key_bytes)
+    } else {
+        String::new()
+    };
+
+    WebSocketHandshake { upgrade_id: id, accept_key }
 }
 
 /// Accept a WebSocket upgrade by ID, set up message handling.
@@ -61,7 +82,7 @@ pub fn accept_websocket(
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Message>();
 
-    tokio::spawn(async move {
+    WS_RUNTIME.spawn(async move {
         let upgraded = match upgrader.await {
             Ok(u) => u,
             Err(e) => {
@@ -73,51 +94,46 @@ pub fn accept_websocket(
             }
         };
 
-        let ws_stream = match tokio_tungstenite::accept_async(TokioIo::new(upgraded)).await {
-            Ok(stream) => stream,
-            Err(e) => {
-                let _ = on_error.call(
-                    Ok(format!("WS handshake failed: {e}")),
-                    ThreadsafeFunctionCallMode::NonBlocking,
-                );
-                return;
-            }
-        };
-
-        let (mut write, mut read) = ws_stream.split();
-
-        let send_handle = tokio::spawn(async move {
-            while let Some(msg) = rx.recv().await {
-                if write.send(msg).await.is_err() { break; }
-            }
-            let _ = write.close().await;
-        });
+        let mut ws_stream = tokio_tungstenite::WebSocketStream::from_raw_socket(
+            TokioIo::new(upgraded),
+            tokio_tungstenite::tungstenite::protocol::Role::Server,
+            None,
+        ).await;
 
         loop {
-            match read.next().await {
-                Some(Ok(Message::Text(text))) => {
-                    let _ = on_message.call(Ok(text), ThreadsafeFunctionCallMode::NonBlocking);
-                }
-                Some(Ok(Message::Binary(data))) => {
-                    if let Ok(text) = String::from_utf8(data) {
-                        let _ = on_message.call(Ok(text), ThreadsafeFunctionCallMode::NonBlocking);
+            tokio::select! {
+                Some(msg) = rx.recv() => {
+                    if ws_stream.send(msg).await.is_err() {
+                        break;
                     }
                 }
-                Some(Ok(Message::Close(_))) | None => {
-                    let _ = on_close.call(Ok(()), ThreadsafeFunctionCallMode::NonBlocking);
-                    break;
-                }
-                Some(Ok(_)) => {}
-                Some(Err(e)) => {
-                    let _ = on_error.call(
-                        Ok(format!("WS error: {e}")),
-                        ThreadsafeFunctionCallMode::NonBlocking,
-                    );
-                    break;
+                msg = ws_stream.next() => {
+                    match msg {
+                        Some(Ok(Message::Text(text))) => {
+                            let _ = on_message.call(Ok(text), ThreadsafeFunctionCallMode::NonBlocking);
+                        }
+                        Some(Ok(Message::Binary(data))) => {
+                            if let Ok(text) = String::from_utf8(data) {
+                                let _ = on_message.call(Ok(text), ThreadsafeFunctionCallMode::NonBlocking);
+                            }
+                        }
+                        Some(Ok(Message::Close(_))) | None => {
+                            let _ = on_close.call(Ok(()), ThreadsafeFunctionCallMode::NonBlocking);
+                            break;
+                        }
+                        Some(Ok(_)) => {}
+                        Some(Err(e)) => {
+                            let _ = on_error.call(
+                                Ok(format!("WS error: {e}")),
+                                ThreadsafeFunctionCallMode::NonBlocking,
+                            );
+                            break;
+                        }
+                    }
                 }
             }
         }
-        send_handle.abort();
+        let _ = ws_stream.close(None).await;
     });
 
     Ok(External::new(WsMessageSender { tx }))
