@@ -1,5 +1,5 @@
 {
-  "name": "@kitojs/bench",
+  "name": "@nglmercer/kito-bench",
   "description": "Kito's benchmarks.",
   "private": true,
   "type": "module",

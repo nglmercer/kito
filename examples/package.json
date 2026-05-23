@@ -1,13 +1,11 @@
 {
-  "name": "@kitojs/examples",
+  "name": "@nglmercer/kito-examples",
   "description": "Kito's usage examples.",
   "private": true,
   "type": "module",
-
   "scripts": {
     "ex:run": "tsx runExample.ts"
   },
-
   "dependencies": {
     "kitojs": "workspace:*"
   },

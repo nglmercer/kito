@@ -4,23 +4,20 @@
   "description": "🐺 The high-performance, type-safe and modern TypeScript web framework written in Rust.",
   "scripts": {
     "build": "tsdown",
-
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-
     "docs": "typedoc",
     "docs:watch": "typedoc --watch",
     "docs:serve": "pnpm dlx serve docs"
   },
-
   "dependencies": {
-    "@kitojs/kito-core": "workspace:*",
+    "@nglmercer/kito-core": "workspace:*",
     "acorn": "^8.15.0",
     "acorn-walk": "^8.3.4"
   },
   "devDependencies": {
-    "@kitojs/types": "workspace:*",
+    "@nglmercer/kito-types": "workspace:*",
     "@vitest/coverage-v8": "^4.0.9",
     "tsdown": "^0.15.0",
     "typedoc": "^0.28.14",
@@ -29,22 +26,19 @@
   "peerDependencies": {
     "typescript": "^5.9.2"
   },
-
   "repository": {
     "type": "git",
-    "url": "https://github.com/kitojs/kito.git"
+    "url": "https://github.com/nglmercer/kito.git"
   },
-  "homepage": "https://kito.pages.dev",
+  "homepage": "https://nglmercer.github.io/kito",
   "bugs": {
-    "url": "https://github.com/kitojs/kito/issues"
+    "url": "https://github.com/nglmercer/kito/issues"
   },
-
   "license": "MIT",
   "author": {
     "name": "Nehuén",
     "url": "https://github.com/nehu3n"
   },
-
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -54,7 +48,6 @@
       "types": "./dist/index.d.ts"
     }
   },
-
   "files": [
     "dist",
     "readme.md",

@@ -10,7 +10,7 @@ app.trace("/debug/trace", ({ req, res }) => {
     method: req.method,
     url: req.url,
     headers,
-    body: req.body
+    body: req.body,
   });
 });
 

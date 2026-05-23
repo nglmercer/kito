@@ -8,7 +8,8 @@ app.all("/api/test", ({ res }) => {
 });
 
 // Or with separate handlers for different methods
-app.all("/api/users")
+app
+  .all("/api/users")
   .get(({ res }) => res.json({ users: [] }))
   .post(({ res }) => res.status(201).json({ created: true }))
   .put(({ res }) => res.json({ updated: true }))
