@@ -153,24 +153,63 @@ export class KitoRouter<
    * });
    * ```
    */
+  /**
+   * Registers middleware with the router.
+   *
+   * @param pathOrMiddleware - Path string, or middleware definition/function
+   * @param maybeMiddleware - Middleware function or definition (when path is provided)
+   * @returns The router instance for chaining
+   */
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  use(
+    middleware: ErrorMiddlewareHandler,
+  ): this;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  use(
+    middleware: MiddlewareHandler,
+  ): this;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  use(
+    middleware: MiddlewareDefinition,
+  ): this;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  use(
+    path: string,
+    middleware: ErrorMiddlewareHandler,
+  ): this;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  use(
+    path: string,
+    middleware: MiddlewareHandler | MiddlewareDefinition,
+  ): this;
+  // biome-ignore lint/complexity/noBannedTypes: ...
   use(
     pathOrMiddleware:
       | string
       | MiddlewareDefinition
       | MiddlewareHandler
       | ErrorMiddlewareHandler,
-    maybeMiddleware?: MiddlewareDefinition | MiddlewareHandler,
+    maybeMiddleware?: MiddlewareDefinition | MiddlewareHandler | ErrorMiddlewareHandler,
   ): this {
     if (typeof pathOrMiddleware === "string" && maybeMiddleware) {
       const path = pathOrMiddleware;
       const mw = maybeMiddleware;
       if (typeof mw === "function") {
-        this.middlewares.push({
-          type: "function",
-          handler: mw as MiddlewareHandler,
-          global: true,
-          path,
-        });
+        if (mw.length >= 3) {
+          this.middlewares.push({
+            type: "error",
+            errorHandler: mw as ErrorMiddlewareHandler,
+            global: true,
+            path,
+          });
+        } else {
+          this.middlewares.push({
+            type: "function",
+            handler: mw as MiddlewareHandler,
+            global: true,
+            path,
+          });
+        }
       } else {
         this.middlewares.push({ ...mw, global: true, path });
       }

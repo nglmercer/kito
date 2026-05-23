@@ -9,13 +9,17 @@ import type { SchemaDefinition } from "./schema/base";
 // biome-ignore lint/complexity/noBannedTypes: ...
 export interface KitoRouterInstance<TExtensions = {}> {
   use(
-    middleware: MiddlewareHandler,
-  ): KitoRouterInstance<TExtensions>;
-  use(
     middleware: ErrorMiddlewareHandler,
   ): KitoRouterInstance<TExtensions>;
   use(
+    middleware: MiddlewareHandler,
+  ): KitoRouterInstance<TExtensions>;
+  use(
     middleware: MiddlewareDefinition,
+  ): KitoRouterInstance<TExtensions>;
+  use(
+    path: string,
+    middleware: ErrorMiddlewareHandler,
   ): KitoRouterInstance<TExtensions>;
   use(
     path: string,
