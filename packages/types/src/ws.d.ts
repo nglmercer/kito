@@ -5,9 +5,7 @@ export interface WebSocketClient {
   close(): void;
   onmessage?: (msg: string) => void;
   onerror?: (err: string) => void;
+  onclose?: () => void;
 }
 
-export type WebSocketHandler = (
-  ctx: KitoContext,
-  ws: WebSocketClient,
-) => void;
+export type WebSocketHandler = (ctx: KitoContext, ws: WebSocketClient) => void;
