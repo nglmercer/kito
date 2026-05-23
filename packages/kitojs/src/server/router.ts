@@ -9,6 +9,7 @@ import type {
   RouteChain,
   KitoRouterInstance,
   RouteDefinition,
+  KitoContext,
 } from "@kitojs/types";
 
 /**
@@ -29,9 +30,9 @@ import type {
  * ```
  */
 // biome-ignore lint/complexity/noBannedTypes: ...
-export class KitoRouter<TExtensions = {}>
-  implements KitoRouterInstance<TExtensions>
-{
+export class KitoRouter<
+  TExtensions = {},
+> implements KitoRouterInstance<TExtensions> {
   protected routes: RouteDefinition<TExtensions>[] = [];
   protected middlewares: MiddlewareDefinition[] = [];
   protected prefix = "";
@@ -63,10 +64,9 @@ export class KitoRouter<TExtensions = {}>
         .map((m) => m.errorHandler!),
     ];
 
-    const hasPathScope = [
-      ...globals,
-      ...routeMiddlewares,
-    ].some((m) => m.path !== undefined);
+    const hasPathScope = [...globals, ...routeMiddlewares].some(
+      (m) => m.path !== undefined,
+    );
 
     if (functions.length === 0 && errorHandlers.length === 0)
       return handler as RouteHandler<TSchema, TExtensions>;
@@ -78,28 +78,33 @@ export class KitoRouter<TExtensions = {}>
         if (err) {
           if (ei < errorHandlers.length) {
             const fn = errorHandlers[ei++];
-            return fn(err, ctx, next);
+            await fn(err, ctx, next);
+            return;
           }
           throw err;
         }
         if (i < functions.length) {
           const fn = functions[i++];
           try {
-            return fn(ctx, next);
+            await fn(ctx, next);
+            return;
           } catch (e) {
             if (ei < errorHandlers.length) {
               const fn = errorHandlers[ei++];
-              return fn(e, ctx, next);
+              await fn(e, ctx, next);
+              return;
             }
             throw e;
           }
         } else {
           try {
-            return handler(ctx);
+            await handler(ctx);
+            return;
           } catch (e) {
             if (ei < errorHandlers.length) {
               const fn = errorHandlers[ei++];
-              return fn(e, ctx, next);
+              await fn(e, ctx, next);
+              return;
             }
             throw e;
           }
@@ -110,7 +115,14 @@ export class KitoRouter<TExtensions = {}>
   }
 
   protected isSchemaDefinition(item: unknown): item is SchemaDefinition {
-    return typeof item === "object" && item !== null && ("params" in item || "query" in item || "body" in item || "headers" in item);
+    return (
+      typeof item === "object" &&
+      item !== null &&
+      ("params" in item ||
+        "query" in item ||
+        "body" in item ||
+        "headers" in item)
+    );
   }
 
   /**
@@ -142,7 +154,11 @@ export class KitoRouter<TExtensions = {}>
    * ```
    */
   use(
-    pathOrMiddleware: string | MiddlewareDefinition | MiddlewareHandler | ErrorMiddlewareHandler,
+    pathOrMiddleware:
+      | string
+      | MiddlewareDefinition
+      | MiddlewareHandler
+      | ErrorMiddlewareHandler,
     maybeMiddleware?: MiddlewareDefinition | MiddlewareHandler,
   ): this {
     if (typeof pathOrMiddleware === "string" && maybeMiddleware) {
@@ -161,7 +177,10 @@ export class KitoRouter<TExtensions = {}>
       return this;
     }
 
-    const middleware = pathOrMiddleware as MiddlewareDefinition | MiddlewareHandler | ErrorMiddlewareHandler;
+    const middleware = pathOrMiddleware as
+      | MiddlewareDefinition
+      | MiddlewareHandler
+      | ErrorMiddlewareHandler;
 
     if (typeof middleware === "function") {
       if (middleware.length >= 3) {
@@ -598,7 +617,17 @@ export class KitoRouter<TExtensions = {}>
       | RouteHandler<TSchema, TExtensions>,
     handlerOrSchema?: RouteHandler<TSchema, TExtensions> | TSchema,
   ): this {
-    const methods: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "TRACE", "CONNECT"];
+    const methods: HttpMethod[] = [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "HEAD",
+      "OPTIONS",
+      "TRACE",
+      "CONNECT",
+    ];
     for (const method of methods) {
       if (typeof middlewaresOrHandler === "function") {
         this.addRoute<TSchema>(
@@ -1086,16 +1115,13 @@ export class KitoRouter<TExtensions = {}>
       method?: HttpMethod;
       headers?: Record<string, string>;
       query?: Record<string, string | string[]>;
-      // biome-ignore lint/suspicious/noExplicitAny: ...
-      body?: any;
+      body?: unknown;
     } = {},
   ): Promise<{
     status: number;
     headers: Record<string, string>;
-    // biome-ignore lint/suspicious/noExplicitAny: ...
-    body: any;
-    // biome-ignore lint/suspicious/noExplicitAny: ...
-    json<T = any>(): T;
+    body: unknown;
+    json<T = unknown>(): T;
     text(): string;
   }> {
     const method = (options.method?.toUpperCase() || "GET") as HttpMethod;
@@ -1151,14 +1177,38 @@ export class KitoRouter<TExtensions = {}>
       }
     }
 
-    const resState = {
+    const resState: {
+      status: number;
+      headers: Record<string, string>;
+      body: unknown;
+    } = {
       status: 200,
-      headers: {} as Record<string, string>,
-      // biome-ignore lint/suspicious/noExplicitAny: ...
-      body: undefined as any,
+      headers: {},
+      body: undefined,
     };
 
-    const mockCtx: any = {
+    interface MockRequest {
+      readonly method: string;
+      readonly url: string;
+      readonly pathname: string;
+      readonly headers: Record<string, string>;
+      readonly query: Record<string, string | string[]>;
+      readonly params: Record<string, string>;
+      readonly body: unknown;
+      header(name: string): string | undefined;
+      json<T = unknown>(): T;
+      text(): string;
+    }
+
+    interface MockResponse {
+      status(code: number): MockResponse;
+      sendStatus(code: number): MockResponse;
+      header(name: string, value: string): MockResponse;
+      send(data: unknown): MockResponse;
+      json(data: unknown): MockResponse;
+    }
+
+    const mockCtx: { req: MockRequest; res: MockResponse } = {
       req: {
         method,
         url: path,
@@ -1168,8 +1218,7 @@ export class KitoRouter<TExtensions = {}>
         params,
         body: options.body,
         header: (name: string) => reqHeaders[name.toLowerCase()],
-        // biome-ignore lint/suspicious/noExplicitAny: ...
-        json: () => options.body as any,
+        json: <T = unknown>() => options.body as T,
         text: () => String(options.body),
       },
       res: {
@@ -1181,11 +1230,11 @@ export class KitoRouter<TExtensions = {}>
           resState.headers[name.toLowerCase()] = value;
           return mockCtx.res;
         },
-        send: (data: any) => {
+        send: (data: unknown) => {
           resState.body = data;
           return mockCtx.res;
         },
-        json: (data: any) => {
+        json: (data: unknown) => {
           resState.headers["content-type"] = "application/json";
           resState.body = data;
           return mockCtx.res;
@@ -1210,7 +1259,7 @@ export class KitoRouter<TExtensions = {}>
       matchedRoute.handler,
     );
 
-    await fusedHandler(mockCtx);
+    await (fusedHandler as RouteHandler<SchemaDefinition>)(mockCtx as unknown as KitoContext<SchemaDefinition>);
 
     return {
       status: resState.status,
