@@ -255,6 +255,35 @@ export interface KitoRouterInstance<TExtensions = {}> {
     handler: RouteHandler<TSchema, TExtensions>,
   ): KitoRouterInstance<TExtensions>;
 
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  connect<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    handler: RouteHandler<TSchema, TExtensions>,
+  ): KitoRouterInstance<TExtensions>;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  connect<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    middlewares:
+      | (MiddlewareDefinition | TSchema)[]
+      | (MiddlewareDefinition | TSchema),
+    handler: RouteHandler<TSchema, TExtensions>,
+  ): KitoRouterInstance<TExtensions>;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  connect<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    handler: RouteHandler<TSchema, TExtensions>,
+    schema: TSchema,
+  ): KitoRouterInstance<TExtensions>;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  connect<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    middlewares:
+      | (MiddlewareDefinition | TSchema)[]
+      | (MiddlewareDefinition | TSchema),
+    handler: RouteHandler<TSchema, TExtensions>,
+    schema: TSchema,
+  ): KitoRouterInstance<TExtensions>;
+
   route(path: string): RouteChain<TExtensions>;
   route(
     path: string,

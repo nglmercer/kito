@@ -601,7 +601,7 @@ export class KitoRouter<TExtensions = {}>
       | RouteHandler<TSchema, TExtensions>,
     handlerOrSchema?: RouteHandler<TSchema, TExtensions> | TSchema,
   ): this {
-    const methods: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
+    const methods: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "TRACE", "CONNECT"];
     for (const method of methods) {
       if (typeof middlewaresOrHandler === "function") {
         this.addRoute<TSchema>(
@@ -657,6 +657,49 @@ export class KitoRouter<TExtensions = {}>
     } else {
       this.addRoute<TSchema>(
         "TRACE",
+        path,
+        middlewaresOrHandler,
+        handlerOrSchema as RouteHandler<TSchema, TExtensions>,
+      );
+    }
+    return this;
+  }
+
+  /**
+   * Registers a CONNECT route.
+   */
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  connect<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    handler: RouteHandler<TSchema, TExtensions>,
+  ): this;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  connect<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    middlewares:
+      | (MiddlewareDefinition | TSchema)[]
+      | (MiddlewareDefinition | TSchema),
+    handler: RouteHandler<TSchema, TExtensions>,
+  ): this;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  connect<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    middlewaresOrHandler:
+      | (MiddlewareDefinition | TSchema)[]
+      | (MiddlewareDefinition | TSchema)
+      | RouteHandler<TSchema, TExtensions>,
+    handlerOrSchema?: RouteHandler<TSchema, TExtensions> | TSchema,
+  ): this {
+    if (typeof middlewaresOrHandler === "function") {
+      this.addRoute<TSchema>(
+        "CONNECT",
+        path,
+        middlewaresOrHandler,
+        handlerOrSchema,
+      );
+    } else {
+      this.addRoute<TSchema>(
+        "CONNECT",
         path,
         middlewaresOrHandler,
         handlerOrSchema as RouteHandler<TSchema, TExtensions>,
@@ -903,6 +946,60 @@ export class KitoRouter<TExtensions = {}>
         } else {
           self.addRoute(
             "HEAD",
+            path,
+            mergeMiddlewares<TSchema>(middlewaresOrHandler),
+            handlerOrSchema as RouteHandler<TSchema, TExtensions>,
+          );
+        }
+        return chain;
+      },
+
+      // biome-ignore lint/complexity/noBannedTypes: ...
+      trace<TSchema extends SchemaDefinition = {}>(
+        middlewaresOrHandler:
+          | (MiddlewareDefinition | TSchema)[]
+          | (MiddlewareDefinition | TSchema)
+          | RouteHandler<TSchema, TExtensions>,
+        handlerOrSchema?: RouteHandler<TSchema, TExtensions> | TSchema,
+      ): RouteChain<TExtensions> {
+        if (typeof middlewaresOrHandler === "function") {
+          self.addRoute(
+            "TRACE",
+            path,
+            mergeMiddlewares<TSchema>(),
+            middlewaresOrHandler,
+            handlerOrSchema as TSchema,
+          );
+        } else {
+          self.addRoute(
+            "TRACE",
+            path,
+            mergeMiddlewares<TSchema>(middlewaresOrHandler),
+            handlerOrSchema as RouteHandler<TSchema, TExtensions>,
+          );
+        }
+        return chain;
+      },
+
+      // biome-ignore lint/complexity/noBannedTypes: ...
+      connect<TSchema extends SchemaDefinition = {}>(
+        middlewaresOrHandler:
+          | (MiddlewareDefinition | TSchema)[]
+          | (MiddlewareDefinition | TSchema)
+          | RouteHandler<TSchema, TExtensions>,
+        handlerOrSchema?: RouteHandler<TSchema, TExtensions> | TSchema,
+      ): RouteChain<TExtensions> {
+        if (typeof middlewaresOrHandler === "function") {
+          self.addRoute(
+            "CONNECT",
+            path,
+            mergeMiddlewares<TSchema>(),
+            middlewaresOrHandler,
+            handlerOrSchema as TSchema,
+          );
+        } else {
+          self.addRoute(
+            "CONNECT",
             path,
             mergeMiddlewares<TSchema>(middlewaresOrHandler),
             handlerOrSchema as RouteHandler<TSchema, TExtensions>,

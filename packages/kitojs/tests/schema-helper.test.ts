@@ -72,4 +72,42 @@ describe("Schema Helper", () => {
     const result = schema(original);
     expect(result).toBe(original);
   });
+
+  it("should create schema definition with response", () => {
+    const userSchema = schema({
+      params: t.object({ id: t.str() }),
+      response: {
+        200: t.object({
+          id: t.str(),
+          name: t.str(),
+        }),
+        404: t.object({
+          message: t.str(),
+        }),
+      },
+    });
+
+    expect(userSchema).toHaveProperty("response");
+    expect(userSchema.response).toBeDefined();
+    expect(userSchema.response[200]).toBeDefined();
+    expect(userSchema.response[404]).toBeDefined();
+  });
+
+  it("should serialize response schema via getDefinitions()", async () => {
+    const { server } = await import("../src");
+
+    const app = server();
+    app.get("/res-schema", [{
+      params: t.object({ id: t.str() }),
+      response: {
+        200: t.object({ name: t.str() }),
+      },
+    }], (ctx) => ctx.res.json({ name: "test" }));
+
+    const defs = app.getDefinitions();
+    const route = defs.find((r) => r.path === "/res-schema" && r.method === "GET");
+    expect(route).toBeDefined();
+    expect(route!.schema).toBeDefined();
+    expect(route!.schema!.response).toBeDefined();
+  });
 });

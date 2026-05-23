@@ -31,6 +31,67 @@ describe("Router", () => {
       ).toBeDefined();
     });
 
+    it("should register TRACE route", () => {
+      const r = router();
+      r.trace("/trace", (ctx) => ctx.res.send("trace"));
+
+      // biome-ignore lint/complexity/useLiteralKeys: ...
+      const routes = r["routes"];
+      expect(
+        routes.find((r) => r.method === "TRACE" && r.path === "/trace"),
+      ).toBeDefined();
+    });
+
+    it("should register CONNECT route", () => {
+      const r = router();
+      r.connect("/tunnel", (ctx) => ctx.res.send("tunnel"));
+
+      // biome-ignore lint/complexity/useLiteralKeys: ...
+      const routes = r["routes"];
+      expect(
+        routes.find((r) => r.method === "CONNECT" && r.path === "/tunnel"),
+      ).toBeDefined();
+    });
+
+    it("should register all methods with all()", () => {
+      const r = router();
+      r.all("/all", (ctx) => ctx.res.send("all"));
+
+      // biome-ignore lint/complexity/useLiteralKeys: ...
+      const routes = r["routes"];
+      const methods = routes
+        .filter((route) => route.path === "/all")
+        .map((route) => route.method);
+      expect(methods).toContain("GET");
+      expect(methods).toContain("POST");
+      expect(methods).toContain("PUT");
+      expect(methods).toContain("DELETE");
+      expect(methods).toContain("PATCH");
+      expect(methods).toContain("HEAD");
+      expect(methods).toContain("OPTIONS");
+      expect(methods).toContain("TRACE");
+      expect(methods).toContain("CONNECT");
+      expect(methods).toHaveLength(9);
+    });
+
+    it("should dispatch CONNECT request via request()", async () => {
+      const r = router();
+      r.connect("/connect-test", (ctx) => ctx.res.send("connected"));
+
+      const res = await r.request("/connect-test", { method: "CONNECT" });
+      expect(res.status).toBe(200);
+      expect(res.body).toBe("connected");
+    });
+
+    it("should dispatch TRACE request via request()", async () => {
+      const r = router();
+      r.trace("/trace-test", (ctx) => ctx.res.send("traced"));
+
+      const res = await r.request("/trace-test", { method: "TRACE" });
+      expect(res.status).toBe(200);
+      expect(res.body).toBe("traced");
+    });
+
     it("should handle route chaining", () => {
       const r = router();
       r.route("/users")

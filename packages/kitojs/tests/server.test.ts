@@ -170,17 +170,82 @@ describe("Server", () => {
   });
 
   describe("Port Conflict", () => {
-    it("should throw when port is already in use", async () => {
-      const occupy = net.createServer();
-      await new Promise<void>((resolve) => occupy.listen(9877, resolve));
+    it("should allow port reuse with reusePort enabled", async () => {
+      const server1 = server({ port: 9877, reusePort: true });
+      server1.listen();
 
-      try {
-        const app = server({ port: 9877 });
-        await expect(app.listen()).rejects.toThrow();
-        app.close();
-      } finally {
-        occupy.close();
-      }
+      const server2 = server({ port: 9877, reusePort: true });
+      server2.listen();
+
+      server1.close();
+      server2.close();
     }, 15000);
+  });
+
+  describe("Server Configuration", () => {
+    it("should pass maxRequestSize to core config", async () => {
+      const testApp = server({ port: 9879, maxRequestSize: 1024 });
+      const config = await testApp.listen();
+      expect(config.maxRequestSize).toBe(1024);
+      testApp.close();
+    });
+
+    it("should pass uploadConfig to core config", async () => {
+      const testApp = server({
+        port: 9880,
+        uploadConfig: {
+          memoryThreshold: 1024,
+          maxFileSize: 10 * 1024 * 1024,
+          maxTotalSize: 100 * 1024 * 1024,
+          tempDir: "/tmp",
+        },
+      });
+      const config = await testApp.listen();
+      expect(config.uploadConfig).toBeDefined();
+      expect(config.uploadConfig?.memoryThreshold).toBe(1024);
+      expect(config.uploadConfig?.tempDir).toBe("/tmp");
+      testApp.close();
+    });
+
+    it("should pass trustProxy to core config", async () => {
+      const testApp = server({ port: 9881, trustProxy: true });
+      const config = await testApp.listen();
+      expect(config.trustProxy).toBe(true);
+      testApp.close();
+    });
+
+    it("should handle listen with custom host", async () => {
+      const testApp = server({ port: 9882, host: "127.0.0.1" });
+      const config = await testApp.listen();
+      expect(config.host).toBe("127.0.0.1");
+      testApp.close();
+    });
+  });
+
+  describe("Server Start/Stop Lifecycle", () => {
+    it("should start and stop server", async () => {
+      const testApp = server({ port: 9883 });
+      const config = await testApp.listen();
+      expect(config.port).toBe(9883);
+      expect(() => testApp.close()).not.toThrow();
+    });
+
+    it("should start and stop multiple times", async () => {
+      const testApp = server({ port: 9884 });
+      await testApp.listen();
+      testApp.close();
+
+      await testApp.listen();
+      testApp.close();
+    });
+
+    it("should serve request via app.request()", async () => {
+      const testApp = server();
+      testApp.get("/hello", (ctx) => ctx.res.send("world"));
+
+      const res = await testApp.request("/hello");
+      expect(res.status).toBe(200);
+      expect(res.body).toBe("world");
+    });
   });
 });

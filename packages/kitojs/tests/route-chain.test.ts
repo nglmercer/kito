@@ -122,11 +122,13 @@ describe("Route Chaining", () => {
         .delete((ctx) => ctx.res.send("delete"))
         .patch((ctx) => ctx.res.send("patch"))
         .head((ctx) => ctx.res.send("head"))
-        .options((ctx) => ctx.res.send("options"));
+        .options((ctx) => ctx.res.send("options"))
+        .trace((ctx) => ctx.res.send("trace"))
+        .connect((ctx) => ctx.res.send("connect"));
 
       // biome-ignore lint/complexity/useLiteralKeys: ...
       const routes = r["routes"];
-      expect(routes).toHaveLength(7);
+      expect(routes).toHaveLength(9);
       const methods = routes.map((r) => r.method);
       expect(methods).toContain("GET");
       expect(methods).toContain("POST");
@@ -135,6 +137,28 @@ describe("Route Chaining", () => {
       expect(methods).toContain("PATCH");
       expect(methods).toContain("HEAD");
       expect(methods).toContain("OPTIONS");
+      expect(methods).toContain("TRACE");
+      expect(methods).toContain("CONNECT");
+    });
+
+    it("should dispatch TRACE via route chain", async () => {
+      const r = router();
+      r.route("/chain-trace")
+        .trace((ctx) => ctx.res.send("traced"));
+
+      const res = await r.request("/chain-trace", { method: "TRACE" });
+      expect(res.status).toBe(200);
+      expect(res.body).toBe("traced");
+    });
+
+    it("should dispatch CONNECT via route chain", async () => {
+      const r = router();
+      r.route("/chain-connect")
+        .connect((ctx) => ctx.res.send("connected"));
+
+      const res = await r.request("/chain-connect", { method: "CONNECT" });
+      expect(res.status).toBe(200);
+      expect(res.body).toBe("connected");
     });
 
     it("should apply route-level middlewares to all methods in the chain", () => {

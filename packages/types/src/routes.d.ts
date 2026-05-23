@@ -10,7 +10,8 @@ export type HttpMethod =
   | "PATCH"
   | "HEAD"
   | "OPTIONS"
-  | "TRACE";
+  | "TRACE"
+  | "CONNECT";
 
 export interface RouteDefinition<TExtensions = unknown> {
   method: HttpMethod;
@@ -198,6 +199,56 @@ export type RouteChain<TExtensions = {}> = {
   ): RouteChain<TExtensions>;
   // biome-ignore lint/complexity/noBannedTypes: ...
   options<TSchema extends SchemaDefinition = {}>(
+    middlewaresOrHandler:
+      | (MiddlewareDefinition | TSchema)[]
+      | (MiddlewareDefinition | TSchema)
+      | RouteHandler<TSchema, TExtensions>,
+    handlerOrSchema?: RouteHandler<TSchema, TExtensions> | TSchema,
+  ): RouteChain<TExtensions>;
+
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  trace<TSchema extends SchemaDefinition = {}>(
+    handler: RouteHandler<TSchema, TExtensions>,
+  ): RouteChain<TExtensions>;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  trace<TSchema extends SchemaDefinition = {}>(
+    middlewares:
+      | (MiddlewareDefinition | TSchema)[]
+      | (MiddlewareDefinition | TSchema),
+    handler: RouteHandler<TSchema, TExtensions>,
+  ): RouteChain<TExtensions>;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  trace<TSchema extends SchemaDefinition = {}>(
+    handler: RouteHandler<TSchema, TExtensions>,
+    schema: TSchema,
+  ): RouteChain<TExtensions>;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  trace<TSchema extends SchemaDefinition = {}>(
+    middlewaresOrHandler:
+      | (MiddlewareDefinition | TSchema)[]
+      | (MiddlewareDefinition | TSchema)
+      | RouteHandler<TSchema, TExtensions>,
+    handlerOrSchema?: RouteHandler<TSchema, TExtensions> | TSchema,
+  ): RouteChain<TExtensions>;
+
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  connect<TSchema extends SchemaDefinition = {}>(
+    handler: RouteHandler<TSchema, TExtensions>,
+  ): RouteChain<TExtensions>;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  connect<TSchema extends SchemaDefinition = {}>(
+    middlewares:
+      | (MiddlewareDefinition | TSchema)[]
+      | (MiddlewareDefinition | TSchema),
+    handler: RouteHandler<TSchema, TExtensions>,
+  ): RouteChain<TExtensions>;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  connect<TSchema extends SchemaDefinition = {}>(
+    handler: RouteHandler<TSchema, TExtensions>,
+    schema: TSchema,
+  ): RouteChain<TExtensions>;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  connect<TSchema extends SchemaDefinition = {}>(
     middlewaresOrHandler:
       | (MiddlewareDefinition | TSchema)[]
       | (MiddlewareDefinition | TSchema)

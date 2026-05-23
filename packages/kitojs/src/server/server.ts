@@ -301,6 +301,8 @@ export class KitoServer<TExtensions = {}>
       "PATCH",
       "HEAD",
       "OPTIONS",
+      "TRACE",
+      "CONNECT",
     ];
 
     for (const method of methods) {

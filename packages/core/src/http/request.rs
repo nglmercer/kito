@@ -361,3 +361,53 @@ pub fn is_file_on_disk(core: &External<Arc<RequestCore>>, name: String) -> bool 
         .map(|f| f.data.is_disk())
         .unwrap_or(false)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::http::multipart::{UploadConfigNapi, DEFAULT_MAX_FILE_SIZE, DEFAULT_MEMORY_THRESHOLD, DEFAULT_MAX_TOTAL_SIZE};
+
+    #[test]
+    fn test_upload_config_napi_to_upload_config_defaults() {
+        let napi = UploadConfigNapi {
+            memory_threshold: None,
+            max_file_size: None,
+            max_total_size: None,
+            temp_dir: None,
+        };
+        let config: UploadConfig = napi.into();
+        assert_eq!(config.memory_threshold, DEFAULT_MEMORY_THRESHOLD);
+        assert_eq!(config.max_file_size, DEFAULT_MAX_FILE_SIZE);
+        assert_eq!(config.max_total_size, DEFAULT_MAX_TOTAL_SIZE);
+        assert_eq!(config.temp_dir, None);
+    }
+
+    #[test]
+    fn test_upload_config_napi_to_upload_config_custom() {
+        let napi = UploadConfigNapi {
+            memory_threshold: Some(2048),
+            max_file_size: Some(5 * 1024 * 1024),
+            max_total_size: Some(50 * 1024 * 1024),
+            temp_dir: Some("/tmp/kito".to_string()),
+        };
+        let config: UploadConfig = napi.into();
+        assert_eq!(config.memory_threshold, 2048);
+        assert_eq!(config.max_file_size, 5 * 1024 * 1024);
+        assert_eq!(config.max_total_size, 50 * 1024 * 1024);
+        assert_eq!(config.temp_dir, Some("/tmp/kito".to_string()));
+    }
+
+    #[test]
+    fn test_upload_config_napi_to_upload_config_partial() {
+        let napi = UploadConfigNapi {
+            memory_threshold: Some(4096),
+            max_file_size: None,
+            max_total_size: None,
+            temp_dir: None,
+        };
+        let config: UploadConfig = napi.into();
+        assert_eq!(config.memory_threshold, 4096);
+        assert_eq!(config.max_file_size, DEFAULT_MAX_FILE_SIZE);
+        assert_eq!(config.max_total_size, DEFAULT_MAX_TOTAL_SIZE);
+    }
+}
