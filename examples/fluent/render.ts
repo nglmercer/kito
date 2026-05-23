@@ -1,18 +1,19 @@
-import { server } from "../../../packages/kitojs/src/server";
+import { server } from "kitojs";
+import type { KitoContext } from "kitojs";
 
 // Register a simple template engine for .html files
-import { registerTemplateEngine } from "../../../packages/kitojs/src/server/response";
+import { registerTemplateEngine } from "kitojs";
 
-registerTemplateEngine("html", (view, data) => {
+registerTemplateEngine("html", (view: string, data: Record<string, unknown>) => {
   // Simple template replacement for demonstration
   let template = `<!DOCTYPE html>
 <html>
 <head>
-  <title>${data.title || "Default Title"}</title>
+  <title>${(data.title as string | undefined) || "Default Title"}</title>
 </head>
 <body>
-  <h1>${data.heading || "Welcome"}</h1>
-  <p>${data.content || "Hello World!"}</p>
+  <h1>${(data.heading as string | undefined) || "Welcome"}</h1>
+  <p>${(data.content as string | undefined) || "Hello World!"}</p>
   {{#if user}}
   <p>Welcome, {{user.name}}!</p>
   {{/if}}
@@ -36,7 +37,7 @@ registerTemplateEngine("html", (view, data) => {
 
 const app = server();
 
-app.get("/", ({ res }) => {
+app.get("/", ({ res }: KitoContext) => {
   res.render("index", {
     title: "KitoJS Template Example",
     heading: "Welcome to KitoJS!",
@@ -45,7 +46,7 @@ app.get("/", ({ res }) => {
   });
 });
 
-app.get("/about", ({ res }) => {
+app.get("/about", ({ res }: KitoContext) => {
   res.render("about", {
     title: "About KitoJS",
     heading: "About This Framework",

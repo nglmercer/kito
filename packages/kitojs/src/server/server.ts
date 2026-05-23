@@ -41,8 +41,7 @@ export class KitoServer<TExtensions = {}>
   private serverOptions: ServerOptions = {};
 
   private coreServer: ServerCore;
-  // biome-ignore lint/suspicious/noExplicitAny: ...
-  private extensionFn?: (ctx: any) => void;
+  private extensionFn?: (ctx: KitoContext) => void;
 
   /**
    * Creates a new Kito server instance.
@@ -320,7 +319,6 @@ export class KitoServer<TExtensions = {}>
     }
   }
 
-
   /**
    * Starts the server.
    *
@@ -415,7 +413,11 @@ export class KitoServer<TExtensions = {}>
     };
 
     this.coreServer.setConfig(configuration);
-    await this.coreServer.start(ready);
+    if (maybeCallback) {
+      await this.coreServer.start(ready);
+    } else {
+      this.coreServer.start(ready);
+    }
 
     return configuration;
   }

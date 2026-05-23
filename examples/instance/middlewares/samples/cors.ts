@@ -1,4 +1,4 @@
-import { cors } from "../../../packages/kitojs/src/helpers/cors";
+import { cors } from "kitojs";
 
 /**
  * CORS middleware with custom configuration

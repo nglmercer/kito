@@ -1,9 +1,10 @@
 import { server } from "kitojs";
+import type { KitoContext, NextFunction } from "kitojs";
 
 const app = server();
 
 // Global error handling middleware
-app.use((err, ctx, next) => {
+app.use((err: Error, ctx: KitoContext, next: NextFunction) => {
   console.error("Global error handler:", err);
   ctx.res.status(500).json({ 
     error: "Internal Server Error", 
@@ -12,7 +13,7 @@ app.use((err, ctx, next) => {
 });
 
 // Route-specific error handler
-app.use("/api/", (err, ctx, next) => {
+app.use("/api/", (err: Error, ctx: KitoContext, next: NextFunction) => {
   console.error("API error handler:", err);
   ctx.res.status(500).json({ 
     error: "API Error", 
@@ -21,20 +22,20 @@ app.use("/api/", (err, ctx, next) => {
 });
 
 // Route that throws an error
-app.get("/api/error", ({ res }) => {
+app.get("/api/error", ({ res }: KitoContext) => {
   throw new Error("Something went wrong!");
 });
 
 // Route that throws an error in middleware
-app.use("/api/middleware-error", (ctx, next) => {
+app.use("/api/middleware-error", (ctx: KitoContext, next: NextFunction) => {
   throw new Error("Middleware error!");
-}, (ctx) => {
+}, (ctx: KitoContext) => {
   // This won't be reached due to the error above
   ctx.res.send("Should not see this");
 });
 
 // Route that works normally
-app.get("/api/ok", ({ res }) => {
+app.get("/api/ok", ({ res }: KitoContext) => {
   res.json({ message: "This works fine!" });
 });
 

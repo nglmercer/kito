@@ -71,12 +71,10 @@ export class KitoRouter<TExtensions = {}>
     if (functions.length === 0 && errorHandlers.length === 0)
       return handler as RouteHandler<TSchema, TExtensions>;
 
-    // biome-ignore lint/suspicious/noExplicitAny: ...
-    return async (ctx: any) => {
+    return async (ctx: KitoContext<TSchema> & TExtensions) => {
       let i = 0;
       let ei = 0;
-      // biome-ignore lint/suspicious/noExplicitAny: ...
-      const next = async (err?: any): Promise<any> => {
+      const next = async (err?: unknown): Promise<void> => {
         if (err) {
           if (ei < errorHandlers.length) {
             const fn = errorHandlers[ei++];
@@ -111,9 +109,8 @@ export class KitoRouter<TExtensions = {}>
     };
   }
 
-  // biome-ignore lint/suspicious/noExplicitAny: ...
-  protected isSchemaDefinition(item: any): item is SchemaDefinition {
-    return item && (item.params || item.query || item.body || item.headers);
+  protected isSchemaDefinition(item: unknown): item is SchemaDefinition {
+    return typeof item === "object" && item !== null && ("params" in item || "query" in item || "body" in item || "headers" in item);
   }
 
   /**
