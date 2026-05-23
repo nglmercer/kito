@@ -42,9 +42,15 @@ impl Default for UploadConfig {
 impl From<UploadConfigNapi> for UploadConfig {
     fn from(napi: UploadConfigNapi) -> Self {
         Self {
-            memory_threshold: napi.memory_threshold.map(|v| v as usize).unwrap_or(DEFAULT_MEMORY_THRESHOLD),
+            memory_threshold: napi
+                .memory_threshold
+                .map(|v| v as usize)
+                .unwrap_or(DEFAULT_MEMORY_THRESHOLD),
             max_file_size: napi.max_file_size.map(|v| v as usize).unwrap_or(DEFAULT_MAX_FILE_SIZE),
-            max_total_size: napi.max_total_size.map(|v| v as usize).unwrap_or(DEFAULT_MAX_TOTAL_SIZE),
+            max_total_size: napi
+                .max_total_size
+                .map(|v| v as usize)
+                .unwrap_or(DEFAULT_MAX_TOTAL_SIZE),
             temp_dir: napi.temp_dir,
         }
     }

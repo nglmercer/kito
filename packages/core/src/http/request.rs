@@ -365,7 +365,9 @@ pub fn is_file_on_disk(core: &External<Arc<RequestCore>>, name: String) -> bool 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::http::multipart::{UploadConfigNapi, DEFAULT_MAX_FILE_SIZE, DEFAULT_MEMORY_THRESHOLD, DEFAULT_MAX_TOTAL_SIZE};
+    use crate::http::multipart::{
+        DEFAULT_MAX_FILE_SIZE, DEFAULT_MAX_TOTAL_SIZE, DEFAULT_MEMORY_THRESHOLD, UploadConfigNapi,
+    };
 
     #[test]
     fn test_upload_config_napi_to_upload_config_defaults() {

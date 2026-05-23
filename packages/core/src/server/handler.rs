@@ -81,22 +81,30 @@ pub async fn handle_request(
             .unwrap());
     }
 
-    let upload_config = config.upload_config.as_ref().map(|uc| UploadConfig::from(uc.clone())).unwrap_or_default();
-    let mut req_core =
-        match RequestCore::new_with_config(req, remote_addr, config.trust_proxy.unwrap_or(false), &upload_config, config.max_request_size.map(|v| v as usize)).await {
-            Ok(core) => core,
-            Err(e) => {
-                eprintln!("Error creating request: {e}");
-                return Ok(Response::builder()
-                    .status(400)
-                    .body(
-                        Full::new(Bytes::from_static(b"Bad Request"))
-                            .map_err(|never| match never {})
-                            .boxed(),
-                    )
-                    .unwrap());
-            }
-        };
+    let upload_config =
+        config.upload_config.as_ref().map(|uc| UploadConfig::from(uc.clone())).unwrap_or_default();
+    let mut req_core = match RequestCore::new_with_config(
+        req,
+        remote_addr,
+        config.trust_proxy.unwrap_or(false),
+        &upload_config,
+        config.max_request_size.map(|v| v as usize),
+    )
+    .await
+    {
+        Ok(core) => core,
+        Err(e) => {
+            eprintln!("Error creating request: {e}");
+            return Ok(Response::builder()
+                .status(400)
+                .body(
+                    Full::new(Bytes::from_static(b"Bad Request"))
+                        .map_err(|never| match never {})
+                        .boxed(),
+                )
+                .unwrap());
+        }
+    };
 
     req_core.params = matched.params.into_iter().collect();
 
@@ -230,8 +238,10 @@ pub async fn handle_request(
                     let status_str = status.to_string();
                     if let Some(schema) = response_schemas.get(&status_str) {
                         if let Err(e) = parse_body(&body, schema) {
-                            let error_msg =
-                                format!("Response validation error for status {status}: {}", e.message);
+                            let error_msg = format!(
+                                "Response validation error for status {status}: {}",
+                                e.message
+                            );
                             return Ok(Response::builder()
                                 .status(500)
                                 .header("Content-Type", "application/json")

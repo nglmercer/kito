@@ -42,7 +42,9 @@ pub static ROUTER: Lazy<GlobalRouter> = Lazy::new(GlobalRouter::new);
 #[napi(object)]
 pub struct Route {
     pub path: String,
-    #[napi(ts_type = "'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS' | 'TRACE' | 'CONNECT'")]
+    #[napi(
+        ts_type = "'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS' | 'TRACE' | 'CONNECT'"
+    )]
     pub method: String,
     #[napi(ts_type = "RouteHandler")]
     pub handler: Function<'static, ContextObject, ()>,

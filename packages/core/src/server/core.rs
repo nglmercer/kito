@@ -71,7 +71,10 @@ impl ServerCore {
     ///
     /// The caller must guarantee these conditions.
     #[napi(ts_args_type = "ready: (() => void) | undefined")]
-    pub async unsafe fn start(&mut self, ready: Option<ThreadsafeFunction<()>>) -> napi::Result<()> {
+    pub async unsafe fn start(
+        &mut self,
+        ready: Option<ThreadsafeFunction<()>>,
+    ) -> napi::Result<()> {
         let (shutdown_tx, mut shutdown_rx) = watch::channel::<()>(());
         self.shutdown_tx = Some(shutdown_tx);
 
@@ -146,8 +149,9 @@ impl ServerCore {
             });
         }
 
-        let listener = UnixListener::bind(path)
-            .map_err(|e| napi::Error::from_reason(format!("Failed to bind Unix socket at {socket_path}: {e}")))?;
+        let listener = UnixListener::bind(path).map_err(|e| {
+            napi::Error::from_reason(format!("Failed to bind Unix socket at {socket_path}: {e}"))
+        })?;
 
         if let Some(ready_cb) = ready {
             ready_cb.call(Ok(()), ThreadsafeFunctionCallMode::NonBlocking);
@@ -186,7 +190,10 @@ impl ServerCore {
     }
 }
 
-async fn create_reusable_listener(addr: SocketAddr, reuse_port: bool) -> std::io::Result<TcpListener> {
+async fn create_reusable_listener(
+    addr: SocketAddr,
+    reuse_port: bool,
+) -> std::io::Result<TcpListener> {
     use socket2::{Domain, Protocol, Socket, Type};
     use std::net::TcpListener as StdListener;
 

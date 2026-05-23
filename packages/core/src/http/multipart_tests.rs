@@ -495,7 +495,6 @@ mod tests {
 
         let content = tokio::fs::read(path).await.unwrap();
         assert_eq!(content, large_data);
-
     }
 
     #[tokio::test]
@@ -539,7 +538,6 @@ mod tests {
 
         let large_file = &files.get("large").unwrap()[0];
         assert!(large_file.data.is_disk());
-
     }
 
     #[tokio::test]
