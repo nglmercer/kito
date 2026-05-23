@@ -6,6 +6,7 @@ export * from "./handlers";
 export * from "./routes";
 export * from "./router";
 export * from "./server";
+export * from "./ws";
 
 export * from "./schema/base";
 export * from "./schema/string";

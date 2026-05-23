@@ -12,12 +12,12 @@
     "docs:serve": "pnpm dlx serve docs"
   },
   "dependencies": {
-    "@nglmercer/kito-core": "workspace:*",
+    "@kitojs/kito-core": "workspace:*",
     "acorn": "^8.15.0",
     "acorn-walk": "^8.3.4"
   },
   "devDependencies": {
-    "@nglmercer/kito-types": "workspace:*",
+    "@kitojs/types": "workspace:*",
     "@vitest/coverage-v8": "^4.0.9",
     "tsdown": "^0.15.0",
     "typedoc": "^0.28.14",

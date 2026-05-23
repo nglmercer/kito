@@ -79,6 +79,7 @@ export * from "./schemas/builders";
 export * from "./helpers/schema";
 export * from "./helpers/middleware";
 export * from "./helpers/cors";
+export * from "./helpers/ws";
 
 export * from "./server/server";
 export * from "./server/router";

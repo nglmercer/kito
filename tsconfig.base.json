@@ -15,8 +15,8 @@
 
     "baseUrl": ".",
     "paths": {
-      "@nglmercer/kito-core": ["packages/core/src"],
-      "@nglmercer/kito-types": ["packages/types/src"],
+      "@kitojs/kito-core": ["packages/core/src"],
+      "@kitojs/types": ["packages/types/src"],
       "kitojs": ["packages/kitojs/src"],
     },
   },

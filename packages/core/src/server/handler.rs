@@ -3,6 +3,7 @@ use hyper::{
     Request, Response,
     body::{Bytes, Frame, Incoming},
     header::{HeaderName, HeaderValue},
+    upgrade::OnUpgrade,
 };
 
 use napi::{bindgen_prelude::External, threadsafe_function::ThreadsafeFunctionCallMode};
@@ -22,6 +23,7 @@ use crate::{
         context::ContextObject,
         core::ServerOptionsCore,
         routes::{ROUTER, ResponseStrategy},
+        ws,
     },
     validation::parser::*,
 };
@@ -31,6 +33,8 @@ pub async fn handle_request(
     config: ServerOptionsCore,
     remote_addr: Option<SocketAddr>,
 ) -> Result<Response<BoxedBody>, std::convert::Infallible> {
+    let mut req = req;
+
     let method = req.method().to_string();
     let pathname = req.uri().path().to_string();
 
@@ -83,6 +87,22 @@ pub async fn handle_request(
 
     let upload_config =
         config.upload_config.as_ref().map(|uc| UploadConfig::from(uc.clone())).unwrap_or_default();
+
+    // Check for WebSocket upgrade
+    let is_ws_upgrade = req.headers()
+        .get("upgrade")
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v.to_lowercase() == "websocket")
+        .unwrap_or(false);
+
+    let ws_upgrade_id = if is_ws_upgrade {
+        req.extensions_mut()
+            .remove::<OnUpgrade>()
+            .map(ws::store_upgrade)
+    } else {
+        None
+    };
+
     let mut req_core = match RequestCore::new_with_config(
         req,
         remote_addr,
@@ -107,6 +127,7 @@ pub async fn handle_request(
     };
 
     req_core.params = matched.params.into_iter().collect();
+    req_core.websocket_upgrade_id = ws_upgrade_id;
 
     if let Some(schema) = &route.schema {
         if let Some(params_schema) = &schema.params

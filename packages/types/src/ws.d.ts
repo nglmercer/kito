@@ -1,0 +1,11 @@
+import type { KitoContext } from "./context";
+
+export interface WebSocketClient {
+  send(message: string): void;
+  close(): void;
+}
+
+export type WebSocketHandler = (
+  ctx: KitoContext,
+  ws: WebSocketClient,
+) => void;

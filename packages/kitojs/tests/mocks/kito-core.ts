@@ -31,3 +31,21 @@ export const sendResponse = () => {};
 export const startStream = () => {};
 export const sendChunk = () => {};
 export const endStream = () => {};
+
+// WebSocket mocks
+export const acceptWebsocket = (
+  _upgrade: unknown,
+  onMessage: (msg: string) => void,
+  _onError: (err: string) => void,
+  _onClose: () => void,
+) => {
+  const sender = { send: (_msg: string) => {}, close: () => {} };
+  // Store callbacks for test assertions
+  (sender as Record<string, unknown>).onMessage = onMessage;
+  return sender;
+};
+
+export const wsSend = (_sender: unknown, _msg: string) => {};
+export const wsClose = (_sender: unknown) => {};
+
+export const getWebsocketUpgradeId = () => null;

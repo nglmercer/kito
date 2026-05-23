@@ -20,6 +20,7 @@ export type {
   NextFunction,
   MiddlewareHandler,
   RouteHandler,
+  ErrorMiddlewareHandler,
 } from "@kitojs/types";
 
 export type {
@@ -31,3 +32,5 @@ export type {
   ServerOptions,
   KitoServerInstance,
 } from "@kitojs/types";
+
+export type { WebSocketClient, WebSocketHandler } from "@kitojs/types";
