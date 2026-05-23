@@ -79,10 +79,10 @@ impl RequestCore {
 
         let body = req.into_body().collect().await?.to_bytes();
 
-        if let Some(max_size) = max_request_size {
-            if body.len() > max_size {
-                return Err(format!("Request body exceeds maximum size of {max_size} bytes").into());
-            }
+        if let Some(max_size) = max_request_size
+            && body.len() > max_size
+        {
+            return Err(format!("Request body exceeds maximum size of {max_size} bytes").into());
         }
 
         let protocol = if trust_proxy {
@@ -266,7 +266,7 @@ pub fn get_xhr(core: &External<Arc<RequestCore>>) -> bool {
 
 #[napi]
 pub fn get_websocket_upgrade_id(core: &External<Arc<RequestCore>>) -> Option<i64> {
-    core.websocket_upgrade_id.map(|id| id as i64)
+    core.websocket_upgrade_id
 }
 
 #[napi(object)]

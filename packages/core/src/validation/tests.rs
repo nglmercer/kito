@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod validation_tests {
     use super::super::{types::*, validators::*};
     use serde_json::{Value, json};
     use std::collections::HashMap;

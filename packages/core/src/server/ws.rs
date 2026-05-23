@@ -1,20 +1,20 @@
+use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use once_cell::sync::Lazy;
 
 use futures_util::{SinkExt, StreamExt};
 use hyper::upgrade::OnUpgrade;
 use hyper_util::rt::TokioIo;
 use napi::{
-    Result, bindgen_prelude::{External, Function},
+    Result,
+    bindgen_prelude::{External, Function},
     threadsafe_function::ThreadsafeFunctionCallMode,
 };
 use tokio_tungstenite::tungstenite::Message;
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
-static UPGRADES: Lazy<Mutex<HashMap<i64, OnUpgrade>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
+static UPGRADES: Lazy<Mutex<HashMap<i64, OnUpgrade>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// A sender for WebSocket messages
 pub struct WsMessageSender {
@@ -54,9 +54,9 @@ pub fn accept_websocket(
 
     let upgrader = {
         let mut registry = UPGRADES.lock();
-        registry.remove(&upgrade_id).ok_or_else(|| {
-            napi::Error::from_reason("WebSocket upgrade not found or expired")
-        })?
+        registry
+            .remove(&upgrade_id)
+            .ok_or_else(|| napi::Error::from_reason("WebSocket upgrade not found or expired"))?
     };
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Message>();
@@ -88,7 +88,9 @@ pub fn accept_websocket(
 
         let send_handle = tokio::spawn(async move {
             while let Some(msg) = rx.recv().await {
-                if write.send(msg).await.is_err() { break; }
+                if write.send(msg).await.is_err() {
+                    break;
+                }
             }
             let _ = write.close().await;
         });
@@ -126,13 +128,17 @@ pub fn accept_websocket(
 /// Send a text message over a WebSocket connection
 #[napi]
 pub fn ws_send(sender: &External<WsMessageSender>, message: String) -> Result<()> {
-    sender.tx.send(Message::Text(message))
+    sender
+        .tx
+        .send(Message::Text(message))
         .map_err(|e| napi::Error::from_reason(format!("Send failed: {e}")))
 }
 
 /// Close a WebSocket connection
 #[napi]
 pub fn ws_close(sender: &External<WsMessageSender>) -> Result<()> {
-    sender.tx.send(Message::Close(None))
+    sender
+        .tx
+        .send(Message::Close(None))
         .map_err(|e| napi::Error::from_reason(format!("Close failed: {e}")))
 }

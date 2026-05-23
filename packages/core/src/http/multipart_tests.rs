@@ -611,8 +611,7 @@ mod tests {
 
     #[test]
     fn test_upload_error_is_std_error() {
-        let err =
-            UploadError::IoError(std::io::Error::new(std::io::ErrorKind::Other, "test error"));
+        let err = UploadError::IoError(std::io::Error::other("test error"));
         let _: &dyn std::error::Error = &err;
     }
 }

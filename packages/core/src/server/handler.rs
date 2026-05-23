@@ -89,16 +89,15 @@ pub async fn handle_request(
         config.upload_config.as_ref().map(|uc| UploadConfig::from(uc.clone())).unwrap_or_default();
 
     // Check for WebSocket upgrade
-    let is_ws_upgrade = req.headers()
+    let is_ws_upgrade = req
+        .headers()
         .get("upgrade")
         .and_then(|v| v.to_str().ok())
         .map(|v| v.to_lowercase() == "websocket")
         .unwrap_or(false);
 
     let ws_upgrade_id = if is_ws_upgrade {
-        req.extensions_mut()
-            .remove::<OnUpgrade>()
-            .map(ws::store_upgrade)
+        req.extensions_mut().remove::<OnUpgrade>().map(ws::store_upgrade)
     } else {
         None
     };
@@ -257,28 +256,26 @@ pub async fn handle_request(
                     route.schema.as_ref().and_then(|s| s.response.as_ref())
                 {
                     let status_str = status.to_string();
-                    if let Some(schema) = response_schemas.get(&status_str) {
-                        if let Err(e) = parse_body(&body, schema) {
-                            let error_msg = format!(
-                                "Response validation error for status {status}: {}",
-                                e.message
-                            );
-                            return Ok(Response::builder()
-                                .status(500)
-                                .header("Content-Type", "application/json")
-                                .body(
-                                    Full::new(Bytes::from(
-                                        json!({
-                                            "error": "Response Validation Error",
-                                            "message": error_msg
-                                        })
-                                        .to_string(),
-                                    ))
-                                    .map_err(|never| match never {})
-                                    .boxed(),
-                                )
-                                .unwrap());
-                        }
+                    if let Some(schema) = response_schemas.get(&status_str)
+                        && let Err(e) = parse_body(&body, schema)
+                    {
+                        let error_msg =
+                            format!("Response validation error for status {status}: {}", e.message);
+                        return Ok(Response::builder()
+                            .status(500)
+                            .header("Content-Type", "application/json")
+                            .body(
+                                Full::new(Bytes::from(
+                                    json!({
+                                        "error": "Response Validation Error",
+                                        "message": error_msg
+                                    })
+                                    .to_string(),
+                                ))
+                                .map_err(|never| match never {})
+                                .boxed(),
+                            )
+                            .unwrap());
                     }
                 }
 
