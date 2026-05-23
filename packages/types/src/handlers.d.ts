@@ -3,17 +3,17 @@ import type { SchemaDefinition } from "./schema/base";
 
 export type NextFunction = () => void | Promise<void>;
 
-export type MiddlewareHandler<TSchema = unknown, TExtensions = unknown> = (
+export type MiddlewareHandler<TSchema extends SchemaDefinition = {}, TExtensions = {}> = (
   ctx: KitoContext<TSchema> & TExtensions,
   next: NextFunction,
 ) => void | Promise<void>;
 
-export type ErrorMiddlewareHandler<TSchema = unknown, TExtensions = unknown> = (
+export type ErrorMiddlewareHandler<TSchema extends SchemaDefinition = {}, TExtensions = {}> = (
   err: unknown,
   ctx: KitoContext<TSchema> & TExtensions,
   next: NextFunction,
 ) => void | Promise<void>;
 
-export type RouteHandler<TSchema extends SchemaDefinition, TExtensions> = (
+export type RouteHandler<TSchema extends SchemaDefinition = {}, TExtensions = {}> = (
   ctx: KitoContext<TSchema> & TExtensions,
 ) => void | Promise<void> | unknown | Promise<unknown>;

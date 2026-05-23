@@ -1,4 +1,4 @@
-import type { MiddlewareDefinition, MiddlewareHandler } from "@kitojs/types";
+import type { MiddlewareDefinition, MiddlewareHandler, SchemaDefinition } from "@kitojs/types";
 
 /**
  * Creates a typed middleware definition.
@@ -48,8 +48,9 @@ import type { MiddlewareDefinition, MiddlewareHandler } from "@kitojs/types";
  * });
  * ```
  */
-export function middleware<TSchema = unknown, TExtensions = unknown>(
-  handler: MiddlewareHandler<TSchema, TExtensions>,
+// biome-ignore lint/complexity/noBannedTypes: ...
+export function middleware<TExtensions = {}>(
+  handler: MiddlewareHandler<SchemaDefinition, TExtensions>,
 ): MiddlewareDefinition {
   return {
     type: "function",
