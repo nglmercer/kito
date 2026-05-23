@@ -129,7 +129,7 @@ describe("Static Response Analyzer", () => {
 
   it("should detect none for variable declarations", () => {
     const handler = (ctx: Context) => {
-      const message = "hello";
+      const message = ctx.req.pathname;
       ctx.res.send(message);
     };
 
