@@ -1,6 +1,7 @@
 // biome-ignore assist/source/organizeImports: ...
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { server, middleware, schema, t } from "../src";
+import * as net from "node:net";
 
 describe("Server", () => {
   let app: ReturnType<typeof server>;
@@ -166,5 +167,20 @@ describe("Server", () => {
     it("should have close method", () => {
       expect(typeof app.close).toBe("function");
     });
+  });
+
+  describe("Port Conflict", () => {
+    it("should throw when port is already in use", async () => {
+      const occupy = net.createServer();
+      await new Promise<void>((resolve) => occupy.listen(9877, resolve));
+
+      try {
+        const app = server({ port: 9877 });
+        await expect(app.listen()).rejects.toThrow();
+        app.close();
+      } finally {
+        occupy.close();
+      }
+    }, 15000);
   });
 });

@@ -69,29 +69,36 @@ impl ServerCore {
     ///
     /// The caller must guarantee these conditions.
     #[napi(ts_args_type = "ready: (() => void) | undefined")]
-    pub async unsafe fn start(&mut self, ready: Option<ThreadsafeFunction<()>>) {
+    pub async unsafe fn start(&mut self, ready: Option<ThreadsafeFunction<()>>) -> napi::Result<()> {
         let (shutdown_tx, mut shutdown_rx) = watch::channel::<()>(());
         self.shutdown_tx = Some(shutdown_tx);
 
         #[cfg(unix)]
         if let Some(ref socket_path) = self.config.unix_socket {
-            self.start_unix_socket(socket_path, ready, &mut shutdown_rx).await;
-            return;
+            return self.start_unix_socket(socket_path, ready, &mut shutdown_rx).await;
         }
 
-        self.start_tcp(ready, &mut shutdown_rx).await;
+        self.start_tcp(ready, &mut shutdown_rx).await
     }
 
     async fn start_tcp(
         &self,
         ready: Option<ThreadsafeFunction<()>>,
         shutdown_rx: &mut watch::Receiver<()>,
-    ) {
+    ) -> napi::Result<()> {
         let port = self.config.port.unwrap_or(3000);
         let host = self.config.host.as_deref().unwrap_or("0.0.0.0");
-        let addr: SocketAddr = format!("{host}:{port}").parse().expect("Invalid address");
+        let addr: SocketAddr = format!("{host}:{port}")
+            .parse()
+            .map_err(|e| napi::Error::from_reason(format!("Invalid address: {e}")))?;
 
-        let listener = create_reusable_listener(addr).await.expect("Failed to create listener");
+        let listener = bind_with_retry(addr, 15, std::time::Duration::from_millis(200))
+            .await
+            .map_err(|e| {
+                napi::Error::from_reason(format!(
+                    "Failed to bind to {addr} after multiple attempts (is the port already in use?): {e}"
+                ))
+            })?;
 
         if let Some(ready_cb) = ready {
             ready_cb.call(Ok(()), ThreadsafeFunctionCallMode::NonBlocking);
@@ -117,6 +124,8 @@ impl ServerCore {
                 _ = shutdown_rx.changed() => break,
             }
         }
+
+        Ok(())
     }
 
     #[cfg(unix)]
@@ -125,7 +134,7 @@ impl ServerCore {
         socket_path: &str,
         ready: Option<ThreadsafeFunction<()>>,
         shutdown_rx: &mut watch::Receiver<()>,
-    ) {
+    ) -> napi::Result<()> {
         let path = Path::new(socket_path);
 
         if path.exists() {
@@ -134,7 +143,8 @@ impl ServerCore {
             });
         }
 
-        let listener = UnixListener::bind(path).expect("Failed to bind Unix socket");
+        let listener = UnixListener::bind(path)
+            .map_err(|e| napi::Error::from_reason(format!("Failed to bind Unix socket at {socket_path}: {e}")))?;
 
         if let Some(ready_cb) = ready {
             ready_cb.call(Ok(()), ThreadsafeFunctionCallMode::NonBlocking);
@@ -162,6 +172,7 @@ impl ServerCore {
         }
 
         let _ = fs::remove_file(path);
+        Ok(())
     }
 
     #[napi]
@@ -190,4 +201,26 @@ async fn create_reusable_listener(addr: SocketAddr) -> std::io::Result<TcpListen
 
     let std_listener: StdListener = socket.into();
     TcpListener::from_std(std_listener)
+}
+
+async fn bind_with_retry(
+    addr: SocketAddr,
+    max_retries: u32,
+    delay: std::time::Duration,
+) -> std::io::Result<TcpListener> {
+    for attempt in 0..max_retries {
+        match create_reusable_listener(addr).await {
+            Ok(listener) => return Ok(listener),
+            Err(e) if attempt + 1 < max_retries => {
+                eprintln!(
+                    "Warning: failed to bind to {addr} (attempt {}/{}): {e}. Retrying...",
+                    attempt + 1,
+                    max_retries
+                );
+                tokio::time::sleep(delay).await;
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    unreachable!()
 }
