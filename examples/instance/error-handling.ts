@@ -5,18 +5,19 @@ const app = server();
 // Global error handling middleware
 app.use((err, ctx, next) => {
   console.error("Global error handler:", err);
-  ctx.res.status(500).json({ 
-    error: "Internal Server Error", 
-    message: process.env.NODE_ENV === "development" ? err.message : undefined
+  const errmsg = err instanceof Error ? err.message : String(err);
+  ctx.res.status(500).json({
+    error: "Internal Server Error",
+    message: process.env.NODE_ENV === "development" ? errmsg : undefined,
   });
 });
 
 // Route-specific error handler
 app.use("/api/", (err, ctx, next) => {
   console.error("API error handler:", err);
-  ctx.res.status(500).json({ 
-    error: "API Error", 
-    message: "Something went wrong with the API request"
+  ctx.res.status(500).json({
+    error: "API Error",
+    message: "Something went wrong with the API request",
   });
 });
 
@@ -28,9 +29,6 @@ app.get("/api/error", ({ res }) => {
 // Route that throws an error in middleware
 app.use("/api/middleware-error", (ctx, next) => {
   throw new Error("Middleware error!");
-}, (ctx) => {
-  // This won't be reached due to the error above
-  ctx.res.send("Should not see this");
 });
 
 // Route that works normally

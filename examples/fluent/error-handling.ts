@@ -6,9 +6,10 @@ const app = server();
 // Global error handling middleware
 app.use((err, ctx, next: NextFunction) => {
   console.error("Global error handler:", err);
+  const errmsg = err instanceof Error ? err.message : String(err);
   ctx.res.status(500).json({
     error: "Internal Server Error",
-    message: process.env.NODE_ENV === "development" ? err.message : undefined,
+    message: process.env.NODE_ENV === "development" ? errmsg : undefined,
   });
 });
 
@@ -27,16 +28,9 @@ app.get("/api/error", ({ res }: KitoContext) => {
 });
 
 // Route that throws an error in middleware
-app.use(
-  "/api/middleware-error",
-  (ctx: KitoContext, next: NextFunction) => {
-    throw new Error("Middleware error!");
-  },
-  (ctx) => {
-    // This won't be reached due to the error above
-    ctx.res.send("Should not see this");
-  },
-);
+app.use("/api/middleware-error", (ctx: KitoContext, next: NextFunction) => {
+  throw new Error("Middleware error!");
+});
 
 // Route that works normally
 app.get("/api/ok", ({ res }: KitoContext) => {
