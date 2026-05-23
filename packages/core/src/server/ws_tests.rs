@@ -47,4 +47,13 @@ mod tests {
         let result = sender.tx.send(Message::Text("should fail".into()));
         assert!(result.is_err());
     }
+
+    #[tokio::test]
+    async fn test_store_upgrade_no_panic_in_runtime() {
+        let req = hyper::Request::builder()
+            .body(http_body_util::Full::new(hyper::body::Bytes::new()))
+            .unwrap();
+        let upgrade = hyper::upgrade::on(req);
+        super::super::ws::store_upgrade(upgrade);
+    }
 }

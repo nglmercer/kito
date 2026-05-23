@@ -1,4 +1,4 @@
-use tokio::sync::Mutex;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use once_cell::sync::Lazy;
@@ -25,7 +25,7 @@ pub struct WsMessageSender {
 /// Called from handler.rs when a WS upgrade request is detected.
 pub fn store_upgrade(upgrade: OnUpgrade) -> i64 {
     let id = NEXT_ID.fetch_add(1, Ordering::SeqCst) as i64;
-    let mut registry = UPGRADES.blocking_lock();
+    let mut registry = UPGRADES.lock();
     registry.insert(id, upgrade);
     id
 }
@@ -53,7 +53,7 @@ pub fn accept_websocket(
         .build_callback(|_| Ok(()))?;
 
     let upgrader = {
-        let mut registry = UPGRADES.blocking_lock();
+        let mut registry = UPGRADES.lock();
         registry.remove(&upgrade_id).ok_or_else(|| {
             napi::Error::from_reason("WebSocket upgrade not found or expired")
         })?
