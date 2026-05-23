@@ -41,7 +41,7 @@ export function ws<TExtensions = {}, TSchema extends SchemaDefinition = {}>(
       const wsSend = native.wsSend as (sender: unknown, msg: string) => void;
       const wsClose = native.wsClose as (sender: unknown) => void;
 
-      const client: WebSocketClient & { onmessage?: (msg: string) => void } = {
+      const client: WebSocketClient = {
         send: () => {},
         close: () => {},
       };

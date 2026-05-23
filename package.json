@@ -9,18 +9,15 @@
     "lint:fix": "biome lint --write",
     "check": "biome check",
     "check:fix": "biome check --write",
-
     "build": "pnpm core:build --platform && pnpm ts:build",
     "core:build": "pnpm --filter @kitojs/kito-core build",
     "ts:build": "pnpm --filter @kitojs/types build && pnpm --filter kitojs build",
-
     "dev": "pnpm -r dev",
     "test": "pnpm -r test",
-
     "ex:run": "pnpm --filter examples ex:run",
     "bench:run": "pnpm --filter bench bench:run"
   },
-  "author": "Nehuén <github.com/nehu3n>",
+  "author": "nglmercer <github.com/nglmercer>",
   "license": "MIT",
   "devDependencies": {
     "@biomejs/biome": "2.2.3",
