@@ -420,7 +420,13 @@ export class KitoServer<TExtensions = {}>
    *
    * @returns Array of route definitions
    */
-  getDefinitions(): any[] {
+  getDefinitions(): Array<{
+    method: string;
+    path: string;
+    params?: string[];
+    schema?: Record<string, Record<string, unknown>>;
+    staticResponse?: StaticResponseType;
+  }> {
     return this.routes.map((route) => {
       let routeSchema: SchemaDefinition | undefined;
 
@@ -431,30 +437,45 @@ export class KitoServer<TExtensions = {}>
         }
       }
 
-      const definitions: any = {
+      const params = extractPathParams(route.path);
+
+      const definitions: {
+        method: string;
+        path: string;
+        params?: string[];
+        schema?: Record<string, Record<string, unknown>>;
+      } = {
         method: route.method,
         path: route.path,
       };
 
+      if (params.length > 0) {
+        definitions.params = params;
+      }
+
       if (routeSchema) {
-        definitions.schema = {};
+        const schema: Record<string, Record<string, unknown>> = {};
         if (routeSchema.params) {
-          definitions.schema.params = routeSchema.params.toJsonSchema();
+          schema.params = routeSchema.params.toJsonSchema();
         }
         if (routeSchema.query) {
-          definitions.schema.query = routeSchema.query.toJsonSchema();
+          schema.query = routeSchema.query.toJsonSchema();
         }
         if (routeSchema.body) {
-          definitions.schema.body = routeSchema.body.toJsonSchema();
+          schema.body = routeSchema.body.toJsonSchema();
         }
         if (routeSchema.headers) {
-          definitions.schema.headers = routeSchema.headers.toJsonSchema();
+          schema.headers = routeSchema.headers.toJsonSchema();
         }
         if (routeSchema.response) {
-          definitions.schema.response = {};
-          for (const [status, schema] of Object.entries(routeSchema.response)) {
-            definitions.schema.response[status] = schema.toJsonSchema();
+          const response: Record<string, Record<string, unknown>> = {};
+          for (const [status, s] of Object.entries(routeSchema.response)) {
+            response[status] = s.toJsonSchema();
           }
+          schema.response = response;
+        }
+        if (Object.keys(schema).length > 0) {
+          definitions.schema = schema;
         }
       }
 
@@ -485,4 +506,14 @@ export class KitoServer<TExtensions = {}>
 // biome-ignore lint/complexity/noBannedTypes: ...
 export function server(options?: ServerOptions): KitoServer<{}> {
   return new KitoServer(options);
+}
+
+function extractPathParams(path: string): string[] {
+  const params: string[] = [];
+  const re = /:(\w+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(path)) !== null) {
+    params.push(match[1]);
+  }
+  return params;
 }

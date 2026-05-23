@@ -35,6 +35,7 @@ export interface SchemaType {
   _default?: unknown;
   // biome-ignore lint/suspicious/noExplicitAny: ...
   _serialize?(): any;
+  toJsonSchema(): Record<string, unknown>;
 }
 
 export type InferType<T extends SchemaType> = T extends { _default: infer D }
