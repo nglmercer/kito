@@ -9,10 +9,10 @@ import type { SchemaDefinition } from "./schema/base";
 // biome-ignore lint/complexity/noBannedTypes: ...
 export interface KitoRouterInstance<TExtensions = {}> {
   use(
-    middleware: ErrorMiddlewareHandler,
+    middleware: MiddlewareHandler,
   ): KitoRouterInstance<TExtensions>;
   use(
-    middleware: MiddlewareHandler,
+    middleware: ErrorMiddlewareHandler,
   ): KitoRouterInstance<TExtensions>;
   use(
     middleware: MiddlewareDefinition,

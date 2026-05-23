@@ -42,72 +42,86 @@ export class KitoRouter<
     routeMiddlewares: MiddlewareDefinition[],
     handler: RouteHandler<TSchema, TExtensions>,
   ): RouteHandler<TSchema, TExtensions> {
-    const functions = [
+    interface FusedFunction {
+      handler: MiddlewareHandler;
+      path?: string;
+    }
+    interface FusedErrorHandler {
+      handler: ErrorMiddlewareHandler;
+      path?: string;
+    }
+
+    const functions: FusedFunction[] = [
       ...globals
         .filter((m) => m.type === "function" && m.handler)
         // biome-ignore lint/style/noNonNullAssertion: ...
-        .map((m) => m.handler!),
+        .map((m) => ({ handler: m.handler!, path: m.path })),
       ...routeMiddlewares
         .filter((m) => m.type === "function" && m.handler)
         // biome-ignore lint/style/noNonNullAssertion: ...
-        .map((m) => m.handler!),
+        .map((m) => ({ handler: m.handler!, path: m.path })),
     ];
 
-    const errorHandlers = [
+    const errorHandlers: FusedErrorHandler[] = [
       ...globals
         .filter((m) => m.type === "error" && m.errorHandler)
         // biome-ignore lint/style/noNonNullAssertion: ...
-        .map((m) => m.errorHandler!),
+        .map((m) => ({ handler: m.errorHandler!, path: m.path })),
       ...routeMiddlewares
         .filter((m) => m.type === "error" && m.errorHandler)
         // biome-ignore lint/style/noNonNullAssertion: ...
-        .map((m) => m.errorHandler!),
+        .map((m) => ({ handler: m.errorHandler!, path: m.path })),
     ];
-
-    const hasPathScope = [...globals, ...routeMiddlewares].some(
-      (m) => m.path !== undefined,
-    );
 
     if (functions.length === 0 && errorHandlers.length === 0)
       return handler as RouteHandler<TSchema, TExtensions>;
 
     return async (ctx: KitoContext<TSchema> & TExtensions) => {
+      const pathname = ctx.req.pathname;
+      const matchesPath = (mw: { path?: string }): boolean => {
+        if (!mw.path) return true;
+        return pathname.startsWith(mw.path);
+      };
+
       let i = 0;
       let ei = 0;
       const next = async (err?: unknown): Promise<void> => {
         if (err) {
-          if (ei < errorHandlers.length) {
-            const fn = errorHandlers[ei++];
-            await fn(err, ctx, next);
+          while (ei < errorHandlers.length) {
+            const mw = errorHandlers[ei++];
+            if (!matchesPath(mw)) continue;
+            await mw.handler(err, ctx, next);
             return;
           }
           throw err;
         }
-        if (i < functions.length) {
-          const fn = functions[i++];
+        while (i < functions.length) {
+          const mw = functions[i++];
+          if (!matchesPath(mw)) continue;
           try {
-            await fn(ctx, next);
+            await mw.handler(ctx, next);
             return;
           } catch (e) {
-            if (ei < errorHandlers.length) {
-              const fn = errorHandlers[ei++];
-              await fn(e, ctx, next);
+            while (ei < errorHandlers.length) {
+              const em = errorHandlers[ei++];
+              if (!matchesPath(em)) continue;
+              await em.handler(e, ctx, next);
               return;
             }
             throw e;
           }
-        } else {
-          try {
-            await handler(ctx);
+        }
+        try {
+          await handler(ctx);
+          return;
+        } catch (e) {
+          while (ei < errorHandlers.length) {
+            const em = errorHandlers[ei++];
+            if (!matchesPath(em)) continue;
+            await em.handler(e, ctx, next);
             return;
-          } catch (e) {
-            if (ei < errorHandlers.length) {
-              const fn = errorHandlers[ei++];
-              await fn(e, ctx, next);
-              return;
-            }
-            throw e;
           }
+          throw e;
         }
       };
       return next();
@@ -162,11 +176,11 @@ export class KitoRouter<
    */
   // biome-ignore lint/complexity/noBannedTypes: ...
   use(
-    middleware: ErrorMiddlewareHandler,
+    middleware: MiddlewareHandler,
   ): this;
   // biome-ignore lint/complexity/noBannedTypes: ...
   use(
-    middleware: MiddlewareHandler,
+    middleware: ErrorMiddlewareHandler,
   ): this;
   // biome-ignore lint/complexity/noBannedTypes: ...
   use(

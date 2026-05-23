@@ -36,7 +36,7 @@ app.get("/api/ok", ({ res }) => {
   res.json({ message: "This works fine!" });
 });
 
-app.listen(3000, () => {
+app.listen(3002, () => {
   console.log("Server running on http://localhost:3000");
   console.log("Try:");
   console.log("  GET http://localhost:3000/api/ok");

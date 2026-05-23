@@ -4,7 +4,7 @@ import type { KitoContext, NextFunction } from "kitojs";
 const app = server();
 
 // Global error handling middleware
-app.use((err, ctx, next: NextFunction) => {
+app.use((err, ctx, next) => {
   console.error("Global error handler:", err);
   const errmsg = err instanceof Error ? err.message : String(err);
   ctx.res.status(500).json({
