@@ -143,8 +143,7 @@ describe("Route Chaining", () => {
 
     it("should dispatch TRACE via route chain", async () => {
       const r = router();
-      r.route("/chain-trace")
-        .trace((ctx) => ctx.res.send("traced"));
+      r.route("/chain-trace").trace((ctx) => ctx.res.send("traced"));
 
       const res = await r.request("/chain-trace", { method: "TRACE" });
       expect(res.status).toBe(200);
@@ -153,8 +152,7 @@ describe("Route Chaining", () => {
 
     it("should dispatch CONNECT via route chain", async () => {
       const r = router();
-      r.route("/chain-connect")
-        .connect((ctx) => ctx.res.send("connected"));
+      r.route("/chain-connect").connect((ctx) => ctx.res.send("connected"));
 
       const res = await r.request("/chain-connect", { method: "CONNECT" });
       expect(res.status).toBe(200);

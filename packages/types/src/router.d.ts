@@ -9,14 +9,17 @@ import type { SchemaDefinition } from "./schema/base";
 // biome-ignore lint/complexity/noBannedTypes: ...
 export interface KitoRouterInstance<TExtensions = {}> {
   use(
-    middleware: MiddlewareDefinition | MiddlewareHandler,
-  ): KitoRouterInstance<TExtensions>;
-  use(
-    path: string,
-    middleware: MiddlewareDefinition | MiddlewareHandler,
+    middleware: MiddlewareHandler,
   ): KitoRouterInstance<TExtensions>;
   use(
     middleware: ErrorMiddlewareHandler,
+  ): KitoRouterInstance<TExtensions>;
+  use(
+    middleware: MiddlewareDefinition,
+  ): KitoRouterInstance<TExtensions>;
+  use(
+    path: string,
+    middleware: MiddlewareHandler | MiddlewareDefinition,
   ): KitoRouterInstance<TExtensions>;
 
   mount(
@@ -296,13 +299,13 @@ export interface KitoRouterInstance<TExtensions = {}> {
       method?: HttpMethod;
       headers?: Record<string, string>;
       query?: Record<string, string | string[]>;
-      body?: any;
+      body?: unknown;
     },
   ): Promise<{
     status: number;
     headers: Record<string, string>;
-    body: any;
-    json<T = any>(): T;
+    body: unknown;
+    json<T = unknown>(): T;
     text(): string;
   }>;
 }
