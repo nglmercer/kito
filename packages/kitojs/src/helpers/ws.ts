@@ -53,7 +53,13 @@ export function ws<TExtensions = {}, TSchema extends SchemaDefinition = {}>(
             client.onmessage(msg);
           }
         },
-        (err: string) => console.error("WebSocket error:", err),
+        (err: string) => {
+          if (client.onerror) {
+            client.onerror(err);
+          } else {
+            console.error("WebSocket error:", err);
+          }
+        },
         () => {},
       );
 
