@@ -39,7 +39,7 @@ impl RequestCore {
         remote_addr: Option<SocketAddr>,
         trust_proxy: bool,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        Self::new_with_config(req, remote_addr, trust_proxy, &UploadConfig::default()).await
+        Self::new_with_config(req, remote_addr, trust_proxy, &UploadConfig::default(), None).await
     }
 
     pub async fn new_with_config(
@@ -47,6 +47,7 @@ impl RequestCore {
         remote_addr: Option<SocketAddr>,
         trust_proxy: bool,
         upload_config: &UploadConfig,
+        max_request_size: Option<usize>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let method = req.method().as_str().to_string();
         let uri = req.uri();
@@ -76,6 +77,12 @@ impl RequestCore {
         let scheme = req.uri().scheme_str().unwrap_or("http").to_string();
 
         let body = req.into_body().collect().await?.to_bytes();
+
+        if let Some(max_size) = max_request_size {
+            if body.len() > max_size {
+                return Err(format!("Request body exceeds maximum size of {max_size} bytes").into());
+            }
+        }
 
         let protocol = if trust_proxy {
             headers_raw

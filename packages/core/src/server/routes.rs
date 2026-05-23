@@ -34,6 +34,7 @@ pub struct RouteSchema {
     pub query: Option<SchemaType>,
     pub body: Option<SchemaType>,
     pub headers: Option<SchemaType>,
+    pub response: Option<HashMap<String, SchemaType>>,
 }
 
 pub static ROUTER: Lazy<GlobalRouter> = Lazy::new(GlobalRouter::new);
@@ -41,7 +42,7 @@ pub static ROUTER: Lazy<GlobalRouter> = Lazy::new(GlobalRouter::new);
 #[napi(object)]
 pub struct Route {
     pub path: String,
-    #[napi(ts_type = "'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS' | 'TRACE'")]
+    #[napi(ts_type = "'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS' | 'TRACE' | 'CONNECT'")]
     pub method: String,
     #[napi(ts_type = "RouteHandler")]
     pub handler: Function<'static, ContextObject, ()>,
@@ -159,6 +160,17 @@ pub fn insert_route(route: Route) -> napi::Result<()> {
             query: parsed.get("query").and_then(|v| from_value(v.clone()).ok()),
             body: parsed.get("body").and_then(|v| from_value(v.clone()).ok()),
             headers: parsed.get("headers").and_then(|v| from_value(v.clone()).ok()),
+            response: parsed.get("response").and_then(|v| {
+                let map: HashMap<String, Value> = from_value(v.clone()).ok()?;
+                Some(
+                    map.into_iter()
+                        .filter_map(|(k, v)| {
+                            let schema: SchemaType = from_value(v).ok()?;
+                            Some((k, schema))
+                        })
+                        .collect(),
+                )
+            }),
         })
     } else {
         None

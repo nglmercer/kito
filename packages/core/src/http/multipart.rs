@@ -1,14 +1,24 @@
 use futures_util::StreamExt;
 use hyper::body::Bytes;
 use multer::Multipart;
+use napi_derive::napi;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 use tokio::io::AsyncWriteExt;
 
-const DEFAULT_MEMORY_THRESHOLD: usize = 10 * 1024 * 1024;
-const DEFAULT_MAX_FILE_SIZE: usize = 100 * 1024 * 1024;
-const DEFAULT_MAX_TOTAL_SIZE: usize = 500 * 1024 * 1024;
+pub const DEFAULT_MEMORY_THRESHOLD: usize = 10 * 1024 * 1024;
+pub const DEFAULT_MAX_FILE_SIZE: usize = 100 * 1024 * 1024;
+pub const DEFAULT_MAX_TOTAL_SIZE: usize = 500 * 1024 * 1024;
+
+#[napi(object)]
+#[derive(Clone)]
+pub struct UploadConfigNapi {
+    pub memory_threshold: Option<u32>,
+    pub max_file_size: Option<u32>,
+    pub max_total_size: Option<u32>,
+    pub temp_dir: Option<String>,
+}
 
 #[derive(Clone, Debug)]
 pub struct UploadConfig {
@@ -25,6 +35,17 @@ impl Default for UploadConfig {
             max_file_size: DEFAULT_MAX_FILE_SIZE,
             max_total_size: DEFAULT_MAX_TOTAL_SIZE,
             temp_dir: None,
+        }
+    }
+}
+
+impl From<UploadConfigNapi> for UploadConfig {
+    fn from(napi: UploadConfigNapi) -> Self {
+        Self {
+            memory_threshold: napi.memory_threshold.map(|v| v as usize).unwrap_or(DEFAULT_MEMORY_THRESHOLD),
+            max_file_size: napi.max_file_size.map(|v| v as usize).unwrap_or(DEFAULT_MAX_FILE_SIZE),
+            max_total_size: napi.max_total_size.map(|v| v as usize).unwrap_or(DEFAULT_MAX_TOTAL_SIZE),
+            temp_dir: napi.temp_dir,
         }
     }
 }
@@ -256,16 +277,10 @@ fn create_temp_file(temp_dir: Option<&str>) -> Result<NamedTempFile, std::io::Er
     }
 }
 
-pub fn cleanup_file(file: &UploadedFile) {
-    if let FileData::Disk(path) = &file.data {
-        let _ = std::fs::remove_file(path);
-    }
-}
-
-pub fn cleanup_files(files: &HashMap<String, Vec<UploadedFile>>) {
-    for file_list in files.values() {
-        for file in file_list {
-            cleanup_file(file);
+impl Drop for UploadedFile {
+    fn drop(&mut self) {
+        if let FileData::Disk(path) = &self.data {
+            let _ = std::fs::remove_file(path);
         }
     }
 }

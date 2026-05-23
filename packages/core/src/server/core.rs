@@ -14,6 +14,7 @@ use std::path::Path;
 #[cfg(unix)]
 use tokio::net::UnixListener;
 
+use crate::http::multipart::UploadConfigNapi;
 use crate::server::{handler::handle_request, routes::insert_route};
 
 use super::routes::Route;
@@ -28,6 +29,7 @@ pub struct ServerOptionsCore {
     pub max_request_size: Option<u32>,
     pub timeout: Option<u32>,
     pub reuse_port: Option<bool>,
+    pub upload_config: Option<UploadConfigNapi>,
 }
 
 #[napi]
@@ -92,7 +94,8 @@ impl ServerCore {
             .parse()
             .map_err(|e| napi::Error::from_reason(format!("Invalid address: {e}")))?;
 
-        let listener = bind_with_retry(addr, 15, std::time::Duration::from_millis(200))
+        let reuse_port = self.config.reuse_port.unwrap_or(false);
+        let listener = bind_with_retry(addr, 15, std::time::Duration::from_millis(200), reuse_port)
             .await
             .map_err(|e| {
                 napi::Error::from_reason(format!(
@@ -183,7 +186,7 @@ impl ServerCore {
     }
 }
 
-async fn create_reusable_listener(addr: SocketAddr) -> std::io::Result<TcpListener> {
+async fn create_reusable_listener(addr: SocketAddr, reuse_port: bool) -> std::io::Result<TcpListener> {
     use socket2::{Domain, Protocol, Socket, Type};
     use std::net::TcpListener as StdListener;
 
@@ -192,8 +195,10 @@ async fn create_reusable_listener(addr: SocketAddr) -> std::io::Result<TcpListen
 
     socket.set_reuse_address(true)?;
 
-    #[cfg(all(unix, not(target_os = "solaris"), not(target_os = "illumos")))]
-    socket.set_reuse_port(true)?;
+    if reuse_port {
+        #[cfg(all(unix, not(target_os = "solaris"), not(target_os = "illumos")))]
+        socket.set_reuse_port(true)?;
+    }
 
     socket.set_nonblocking(true)?;
     socket.bind(&addr.into())?;
@@ -207,9 +212,10 @@ async fn bind_with_retry(
     addr: SocketAddr,
     max_retries: u32,
     delay: std::time::Duration,
+    reuse_port: bool,
 ) -> std::io::Result<TcpListener> {
     for attempt in 0..max_retries {
-        match create_reusable_listener(addr).await {
+        match create_reusable_listener(addr, reuse_port).await {
             Ok(listener) => return Ok(listener),
             Err(e) if attempt + 1 < max_retries => {
                 eprintln!(

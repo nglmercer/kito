@@ -65,6 +65,7 @@ export class KitoServer<TExtensions = {}>
       trustProxy: options?.trustProxy,
       maxRequestSize: options?.maxRequestSize,
       timeout: options?.timeout,
+      uploadConfig: options?.uploadConfig,
     });
   }
 
@@ -244,6 +245,14 @@ export class KitoServer<TExtensions = {}>
       // biome-ignore lint/suspicious/noExplicitAny: ...
       serialized.headers = (schema.headers as any)._serialize();
     }
+    if (schema.response) {
+      const response: Record<string, unknown> = {};
+      for (const [status, s] of Object.entries(schema.response)) {
+        // biome-ignore lint/suspicious/noExplicitAny: ...
+        response[status] = (s as any)._serialize();
+      }
+      serialized.response = response;
+    }
 
     return JSON.stringify(serialized);
   }
@@ -400,6 +409,7 @@ export class KitoServer<TExtensions = {}>
       trustProxy: this.serverOptions.trustProxy,
       maxRequestSize: this.serverOptions.maxRequestSize,
       timeout: this.serverOptions.timeout,
+      uploadConfig: this.serverOptions.uploadConfig,
     };
 
     this.coreServer.setConfig(configuration);

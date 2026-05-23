@@ -14,6 +14,7 @@ use tokio::sync::mpsc;
 
 use crate::{
     http::{
+        multipart::UploadConfig,
         request::RequestCore,
         response::{BoxedBody, ResponseChannel, ResponseMessage},
     },
@@ -80,8 +81,9 @@ pub async fn handle_request(
             .unwrap());
     }
 
+    let upload_config = config.upload_config.as_ref().map(|uc| UploadConfig::from(uc.clone())).unwrap_or_default();
     let mut req_core =
-        match RequestCore::new(req, remote_addr, config.trust_proxy.unwrap_or(false)).await {
+        match RequestCore::new_with_config(req, remote_addr, config.trust_proxy.unwrap_or(false), &upload_config, config.max_request_size.map(|v| v as usize)).await {
             Ok(core) => core,
             Err(e) => {
                 eprintln!("Error creating request: {e}");
@@ -222,6 +224,33 @@ pub async fn handle_request(
     if let Some(first_msg) = response_rx.recv().await {
         match first_msg {
             ResponseMessage::Complete { status, headers, body } => {
+                if let Some(response_schemas) =
+                    route.schema.as_ref().and_then(|s| s.response.as_ref())
+                {
+                    let status_str = status.to_string();
+                    if let Some(schema) = response_schemas.get(&status_str) {
+                        if let Err(e) = parse_body(&body, schema) {
+                            let error_msg =
+                                format!("Response validation error for status {status}: {}", e.message);
+                            return Ok(Response::builder()
+                                .status(500)
+                                .header("Content-Type", "application/json")
+                                .body(
+                                    Full::new(Bytes::from(
+                                        json!({
+                                            "error": "Response Validation Error",
+                                            "message": error_msg
+                                        })
+                                        .to_string(),
+                                    ))
+                                    .map_err(|never| match never {})
+                                    .boxed(),
+                                )
+                                .unwrap());
+                        }
+                    }
+                }
+
                 let mut response = Response::builder().status(status);
 
                 for (name, value) in headers {

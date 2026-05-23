@@ -496,7 +496,6 @@ mod tests {
         let content = tokio::fs::read(path).await.unwrap();
         assert_eq!(content, large_data);
 
-        crate::http::multipart::cleanup_files(&files);
     }
 
     #[tokio::test]
@@ -541,11 +540,10 @@ mod tests {
         let large_file = &files.get("large").unwrap()[0];
         assert!(large_file.data.is_disk());
 
-        crate::http::multipart::cleanup_files(&files);
     }
 
     #[tokio::test]
-    async fn test_cleanup_files_removes_disk_files() {
+    async fn test_drop_removes_disk_files() {
         let config = small_file_config();
 
         let large_data: Vec<u8> = vec![42u8; 2048];
@@ -559,8 +557,35 @@ mod tests {
         let path = file.path().unwrap().to_path_buf();
 
         assert!(path.exists());
-        crate::http::multipart::cleanup_files(&files);
+        drop(files);
         assert!(!path.exists());
+    }
+
+    #[tokio::test]
+    async fn test_drop_cleans_multiple_files() {
+        let config = small_file_config();
+
+        let (boundary1, body1) = build_multipart_body(
+            &[],
+            &[("file1", "a.bin", "application/octet-stream", &vec![42u8; 2048])],
+        );
+        let (_, files1) = parse_multipart(&boundary1, body1, &config).await.unwrap();
+        let path1 = files1.get("file1").unwrap()[0].path().unwrap().to_path_buf();
+
+        let (boundary2, body2) = build_multipart_body(
+            &[],
+            &[("file2", "b.bin", "application/octet-stream", &vec![42u8; 2048])],
+        );
+        let (_, files2) = parse_multipart(&boundary2, body2, &config).await.unwrap();
+        let path2 = files2.get("file2").unwrap()[0].path().unwrap().to_path_buf();
+
+        assert!(path1.exists());
+        assert!(path2.exists());
+
+        drop((files1, files2));
+
+        assert!(!path1.exists());
+        assert!(!path2.exists());
     }
 
     // ===== UploadError tests =====

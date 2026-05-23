@@ -3,6 +3,13 @@ import type { MiddlewareDefinition, RouteChain } from "./routes";
 import type { SchemaDefinition } from "./schema/base";
 import type { KitoRouterInstance } from "./router";
 
+export interface UploadConfig {
+  memoryThreshold?: number;
+  maxFileSize?: number;
+  maxTotalSize?: number;
+  tempDir?: string;
+}
+
 export interface ServerOptions {
   port?: number;
   host?: string;
@@ -11,6 +18,7 @@ export interface ServerOptions {
   maxRequestSize?: number;
   timeout?: number;
   reusePort?: boolean;
+  uploadConfig?: UploadConfig;
 }
 
 // biome-ignore lint/complexity/noBannedTypes: ...
