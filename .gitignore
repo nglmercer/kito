@@ -1,5 +1,8 @@
 # typescript
 node_modules
-
+dist
+*.tsbuildinfo
 # rust
 /target
+# benchmark artifacts
+wrk/
