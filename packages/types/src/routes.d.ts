@@ -1,4 +1,4 @@
-import type { MiddlewareHandler, RouteHandler } from "./handlers";
+import type { ErrorMiddlewareHandler, MiddlewareHandler, RouteHandler } from "./handlers";
 import type { SchemaDefinition } from "./schema/base";
 import type { KitoRouterInstance } from "./router";
 
@@ -20,10 +20,12 @@ export interface RouteDefinition<TExtensions = unknown> {
 }
 
 export interface MiddlewareDefinition {
-  type: "function" | "schema";
+  type: "function" | "schema" | "error";
   handler?: MiddlewareHandler;
+  errorHandler?: ErrorMiddlewareHandler;
   schema?: SchemaDefinition;
   global: boolean;
+  path?: string;
 }
 
 // biome-ignore lint/complexity/noBannedTypes: ...

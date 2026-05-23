@@ -556,4 +556,54 @@ export class ResponseBuilder implements KitoResponse {
 
     return new SSEWriterImpl(this.channel);
   }
+
+  render(
+    view: string,
+    data?: Record<string, unknown>,
+    callback?: (err: unknown, html: string) => void,
+  ): void {
+    this.checkFinished();
+
+    const engine = getTemplateEngine(view);
+    if (!engine) {
+      const err = new Error(`No template engine registered for "${view}"`);
+      if (callback) {
+        callback(err, "");
+      } else {
+        throw err;
+      }
+      return;
+    }
+
+    try {
+      const html = engine(view, data || {});
+      this.type("text/html");
+      this.state.body = Buffer.from(html, "utf-8");
+      this.serializeAndSend();
+      if (callback) callback(null, html);
+    } catch (e) {
+      if (callback) {
+        callback(e, "");
+      } else {
+        throw e;
+      }
+    }
+  }
+}
+
+type TemplateEngine = (view: string, data: Record<string, unknown>) => string;
+
+const templateEngines = new Map<string, TemplateEngine>();
+
+export function registerTemplateEngine(
+  extension: string,
+  engine: TemplateEngine,
+): void {
+  templateEngines.set(extension.toLowerCase(), engine);
+}
+
+function getTemplateEngine(view: string): TemplateEngine | undefined {
+  const ext = view.split(".").pop()?.toLowerCase();
+  if (!ext) return undefined;
+  return templateEngines.get(ext);
 }

@@ -93,6 +93,15 @@ export interface KitoRequest {
   json<T = unknown>(): T;
   text(): string;
 
+  accepts(...types: string[]): string | false;
+  acceptsCharsets(...charsets: string[]): string | false;
+  acceptsLanguages(...langs: string[]): string | false;
+  acceptsEncodings(...encodings: string[]): string | false;
+  is(type: string): string | false;
+  get fresh(): boolean;
+  get stale(): boolean;
+  get subdomains(): string[];
+
   get raw(): {
     body: Buffer;
     headers: RequestHeaders;

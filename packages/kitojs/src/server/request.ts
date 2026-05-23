@@ -69,6 +69,21 @@ export class RequestBuilder implements KitoRequest {
       } catch {
         this._body = {};
       }
+    } else if (type.includes("application/x-www-form-urlencoded")) {
+      const params: Record<string, string | string[]> = {};
+      const searchParams = new URLSearchParams(buf.toString("utf-8"));
+      for (const [key, value] of searchParams.entries()) {
+        if (params[key] !== undefined) {
+          if (Array.isArray(params[key])) {
+            (params[key] as string[]).push(value);
+          } else {
+            params[key] = [params[key] as string, value];
+          }
+        } else {
+          params[key] = value;
+        }
+      }
+      this._body = params;
     } else {
       this._body = buf;
     }
@@ -244,6 +259,67 @@ export class RequestBuilder implements KitoRequest {
     return this.url;
   }
 
+  accepts(...types: string[]): string | false {
+    const accept = this.header("accept");
+    if (!accept) return types.length > 0 ? types[0] : false;
+
+    const preferred = parseAcceptHeader(accept, types);
+    return preferred;
+  }
+
+  acceptsCharsets(...charsets: string[]): string | false {
+    const acceptCharset = this.header("accept-charset");
+    if (!acceptCharset) return charsets.length > 0 ? charsets[0] : false;
+    return parseAcceptHeader(acceptCharset, charsets);
+  }
+
+  acceptsLanguages(...langs: string[]): string | false {
+    const acceptLang = this.header("accept-language");
+    if (!acceptLang) return langs.length > 0 ? langs[0] : false;
+    return parseAcceptHeader(acceptLang, langs);
+  }
+
+  acceptsEncodings(...encodings: string[]): string | false {
+    const acceptEncoding = this.header("accept-encoding");
+    if (!acceptEncoding) return encodings.length > 0 ? encodings[0] : false;
+    return parseAcceptHeader(acceptEncoding, encodings);
+  }
+
+  is(type: string): string | false {
+    const ct = this.header("content-type");
+    if (!ct) return false;
+    const normalized = ct.split(";")[0].trim().toLowerCase();
+    if (type === "*/*" || type === normalized) return normalized;
+    if (type.endsWith("/*")) {
+      const typeGroup = type.split("/")[0];
+      if (normalized.startsWith(typeGroup + "/")) return normalized;
+    }
+    return false;
+  }
+
+  get fresh(): boolean {
+    const method = this.method;
+    if (method !== "GET" && method !== "HEAD") return false;
+
+    const noneMatch = this.header("if-none-match");
+    const modifiedSince = this.header("if-modified-since");
+    if (!noneMatch && !modifiedSince) return false;
+
+    return true;
+  }
+
+  get stale(): boolean {
+    return !this.fresh;
+  }
+
+  get subdomains(): string[] {
+    const hostname = this.hostname;
+    if (!hostname) return [];
+    const parts = hostname.split(".");
+    if (parts.length <= 2) return [];
+    return parts.slice(0, -2);
+  }
+
   get raw(): {
     body: Buffer;
     headers: RequestHeaders;
@@ -257,4 +333,31 @@ export class RequestBuilder implements KitoRequest {
       method: this.method,
     };
   }
+}
+
+function parseAcceptHeader(header: string, preferred: string[]): string | false {
+  const items = header.split(",").map((item) => {
+    const [type, ...params] = item.trim().split(";");
+    let q = 1.0;
+    for (const param of params) {
+      const [key, val] = param.trim().split("=");
+      if (key === "q" && val) q = parseFloat(val);
+    }
+    return { type: type.toLowerCase(), q };
+  });
+
+  items.sort((a, b) => b.q - a.q);
+
+  for (const item of items) {
+    if (preferred.length === 0) return item.type;
+    for (const pref of preferred) {
+      if (item.type === pref.toLowerCase()) return pref;
+      if (pref.endsWith("/*")) {
+        const group = pref.split("/")[0];
+        if (item.type.startsWith(group + "/")) return pref;
+      }
+    }
+  }
+
+  return false;
 }

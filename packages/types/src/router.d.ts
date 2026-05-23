@@ -1,4 +1,8 @@
-import type { MiddlewareHandler, RouteHandler } from "./handlers";
+import type {
+  ErrorMiddlewareHandler,
+  MiddlewareHandler,
+  RouteHandler,
+} from "./handlers";
 import type { MiddlewareDefinition, RouteChain } from "./routes";
 import type { SchemaDefinition } from "./schema/base";
 
@@ -7,6 +11,13 @@ export interface KitoRouterInstance<TExtensions = {}> {
   use(
     middleware: MiddlewareDefinition | MiddlewareHandler,
   ): KitoRouterInstance<TExtensions>;
+  use(
+    path: string,
+    middleware: MiddlewareDefinition | MiddlewareHandler,
+  ): KitoRouterInstance<TExtensions>;
+  use(
+    middleware: ErrorMiddlewareHandler,
+  ): KitoRouterInstance<TExtensions>;
 
   mount(
     path: string,
@@ -14,6 +25,20 @@ export interface KitoRouterInstance<TExtensions = {}> {
   ): KitoRouterInstance<TExtensions>;
 
   // biome-ignore lint/complexity/noBannedTypes: ...
+  all<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    handler: RouteHandler<TSchema, TExtensions>,
+  ): KitoRouterInstance<TExtensions>;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  all<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    middlewares:
+      | (MiddlewareDefinition | TSchema)[]
+      | (MiddlewareDefinition | TSchema),
+    handler: RouteHandler<TSchema, TExtensions>,
+  ): KitoRouterInstance<TExtensions>;
+
+  // biome-ignore lint/complexity/noBannedTypes: ...
   get<TSchema extends SchemaDefinition = {}>(
     path: string,
     handler: RouteHandler<TSchema, TExtensions>,
@@ -214,6 +239,20 @@ export interface KitoRouterInstance<TExtensions = {}> {
       | (MiddlewareDefinition | TSchema),
     handler: RouteHandler<TSchema, TExtensions>,
     schema: TSchema,
+  ): KitoRouterInstance<TExtensions>;
+
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  trace<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    handler: RouteHandler<TSchema, TExtensions>,
+  ): KitoRouterInstance<TExtensions>;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  trace<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    middlewares:
+      | (MiddlewareDefinition | TSchema)[]
+      | (MiddlewareDefinition | TSchema),
+    handler: RouteHandler<TSchema, TExtensions>,
   ): KitoRouterInstance<TExtensions>;
 
   route(path: string): RouteChain<TExtensions>;

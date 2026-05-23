@@ -5,6 +5,7 @@ import type {
   SchemaDefinition,
   RouteHandler,
   MiddlewareHandler,
+  ErrorMiddlewareHandler,
   RouteChain,
   KitoRouterInstance,
   RouteDefinition,
@@ -51,19 +52,59 @@ export class KitoRouter<TExtensions = {}>
         .map((m) => m.handler!),
     ];
 
-    if (functions.length === 0)
+    const errorHandlers = [
+      ...globals
+        .filter((m) => m.type === "error" && m.errorHandler)
+        // biome-ignore lint/style/noNonNullAssertion: ...
+        .map((m) => m.errorHandler!),
+      ...routeMiddlewares
+        .filter((m) => m.type === "error" && m.errorHandler)
+        // biome-ignore lint/style/noNonNullAssertion: ...
+        .map((m) => m.errorHandler!),
+    ];
+
+    const hasPathScope = [
+      ...globals,
+      ...routeMiddlewares,
+    ].some((m) => m.path !== undefined);
+
+    if (functions.length === 0 && errorHandlers.length === 0)
       return handler as RouteHandler<TSchema, TExtensions>;
 
     // biome-ignore lint/suspicious/noExplicitAny: ...
     return async (ctx: any) => {
       let i = 0;
+      let ei = 0;
       // biome-ignore lint/suspicious/noExplicitAny: ...
-      const next = async (): Promise<any> => {
+      const next = async (err?: any): Promise<any> => {
+        if (err) {
+          if (ei < errorHandlers.length) {
+            const fn = errorHandlers[ei++];
+            return fn(err, ctx, next);
+          }
+          throw err;
+        }
         if (i < functions.length) {
           const fn = functions[i++];
-          return fn(ctx, next);
+          try {
+            return fn(ctx, next);
+          } catch (e) {
+            if (ei < errorHandlers.length) {
+              const fn = errorHandlers[ei++];
+              return fn(e, ctx, next);
+            }
+            throw e;
+          }
         } else {
-          return handler(ctx);
+          try {
+            return handler(ctx);
+          } catch (e) {
+            if (ei < errorHandlers.length) {
+              const fn = errorHandlers[ei++];
+              return fn(e, ctx, next);
+            }
+            throw e;
+          }
         }
       };
       return next();
@@ -76,26 +117,69 @@ export class KitoRouter<TExtensions = {}>
   }
 
   /**
-   * Registers a global middleware that runs for all routes in this router.
+   * Registers a global middleware or error handler that runs for all routes in this router.
    *
-   * @param middleware - Middleware function or definition
+   * @param pathOrMiddleware - Path string, middleware function, or definition
+   * @param maybeMiddleware - Middleware function or definition (when path is provided)
    * @returns The router instance for chaining
    *
    * @example
    * ```typescript
+   * // Global middleware
    * router.use((ctx, next) => {
    *   console.log(`${ctx.req.method} ${ctx.req.url}`);
    *   next();
    * });
+   *
+   * // Path-scoped middleware
+   * router.use('/admin', (ctx, next) => {
+   *   // only runs for /admin/*
+   *   next();
+   * });
+   *
+   * // Error handler middleware
+   * router.use((err, ctx, next) => {
+   *   console.error(err);
+   *   ctx.res.status(500).send('Internal Error');
+   * });
    * ```
    */
-  use(middleware: MiddlewareDefinition | MiddlewareHandler): this {
+  use(
+    pathOrMiddleware: string | MiddlewareDefinition | MiddlewareHandler | ErrorMiddlewareHandler,
+    maybeMiddleware?: MiddlewareDefinition | MiddlewareHandler,
+  ): this {
+    if (typeof pathOrMiddleware === "string" && maybeMiddleware) {
+      const path = pathOrMiddleware;
+      const mw = maybeMiddleware;
+      if (typeof mw === "function") {
+        this.middlewares.push({
+          type: "function",
+          handler: mw as MiddlewareHandler,
+          global: true,
+          path,
+        });
+      } else {
+        this.middlewares.push({ ...mw, global: true, path });
+      }
+      return this;
+    }
+
+    const middleware = pathOrMiddleware as MiddlewareDefinition | MiddlewareHandler | ErrorMiddlewareHandler;
+
     if (typeof middleware === "function") {
-      this.middlewares.push({
-        type: "function",
-        handler: middleware,
-        global: true,
-      });
+      if (middleware.length >= 3) {
+        this.middlewares.push({
+          type: "error",
+          errorHandler: middleware as ErrorMiddlewareHandler,
+          global: true,
+        });
+      } else {
+        this.middlewares.push({
+          type: "function",
+          handler: middleware as MiddlewareHandler,
+          global: true,
+        });
+      }
     } else {
       this.middlewares.push({ ...middleware, global: true });
     }
@@ -489,6 +573,95 @@ export class KitoRouter<TExtensions = {}>
       handlerOrSchema,
       schema,
     );
+    return this;
+  }
+
+  /**
+   * Registers a route that matches all HTTP methods.
+   */
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  all<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    handler: RouteHandler<TSchema, TExtensions>,
+  ): this;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  all<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    middlewares:
+      | (MiddlewareDefinition | TSchema)[]
+      | (MiddlewareDefinition | TSchema),
+    handler: RouteHandler<TSchema, TExtensions>,
+  ): this;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  all<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    middlewaresOrHandler:
+      | (MiddlewareDefinition | TSchema)[]
+      | (MiddlewareDefinition | TSchema)
+      | RouteHandler<TSchema, TExtensions>,
+    handlerOrSchema?: RouteHandler<TSchema, TExtensions> | TSchema,
+  ): this {
+    const methods: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
+    for (const method of methods) {
+      if (typeof middlewaresOrHandler === "function") {
+        this.addRoute<TSchema>(
+          method,
+          path,
+          middlewaresOrHandler,
+          handlerOrSchema,
+        );
+      } else {
+        this.addRoute<TSchema>(
+          method,
+          path,
+          middlewaresOrHandler,
+          handlerOrSchema as RouteHandler<TSchema, TExtensions>,
+        );
+      }
+    }
+    return this;
+  }
+
+  /**
+   * Registers a TRACE route.
+   */
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  trace<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    handler: RouteHandler<TSchema, TExtensions>,
+  ): this;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  trace<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    middlewares:
+      | (MiddlewareDefinition | TSchema)[]
+      | (MiddlewareDefinition | TSchema),
+    handler: RouteHandler<TSchema, TExtensions>,
+  ): this;
+  // biome-ignore lint/complexity/noBannedTypes: ...
+  trace<TSchema extends SchemaDefinition = {}>(
+    path: string,
+    middlewaresOrHandler:
+      | (MiddlewareDefinition | TSchema)[]
+      | (MiddlewareDefinition | TSchema)
+      | RouteHandler<TSchema, TExtensions>,
+    handlerOrSchema?: RouteHandler<TSchema, TExtensions> | TSchema,
+  ): this {
+    if (typeof middlewaresOrHandler === "function") {
+      this.addRoute<TSchema>(
+        "TRACE",
+        path,
+        middlewaresOrHandler,
+        handlerOrSchema,
+      );
+    } else {
+      this.addRoute<TSchema>(
+        "TRACE",
+        path,
+        middlewaresOrHandler,
+        handlerOrSchema as RouteHandler<TSchema, TExtensions>,
+      );
+    }
     return this;
   }
 

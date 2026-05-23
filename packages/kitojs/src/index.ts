@@ -78,7 +78,9 @@ export * from "./schemas/builders";
 
 export * from "./helpers/schema";
 export * from "./helpers/middleware";
+export * from "./helpers/cors";
 
 export * from "./server/server";
 export * from "./server/router";
+export { registerTemplateEngine } from "./server/response";
 export * from "./types";
